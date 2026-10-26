@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 
@@ -73,6 +74,11 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
               value: (playState.currentIndex + 1) / total,
             ),
             const SizedBox(height: 24),
+            _TimerBadge(
+              secondsLeft: playState.timeLeft,
+              totalSeconds: AppConstants.defaultQuestionTimeSeconds,
+            ),
+            const SizedBox(height: 24),
             Text(
               question.text,
               style: Theme.of(context).textTheme.headlineSmall,
@@ -99,6 +105,52 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                 ),
               );
             }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Circular countdown indicator for the current question.
+///
+/// Turns red in the final 5 seconds to signal urgency.
+class _TimerBadge extends StatelessWidget {
+  const _TimerBadge({
+    required this.secondsLeft,
+    required this.totalSeconds,
+  });
+
+  final int secondsLeft;
+  final int totalSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUrgent = secondsLeft <= 5;
+    final color = isUrgent
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.primary;
+
+    return Center(
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: secondsLeft / totalSeconds,
+              strokeWidth: 4,
+              color: color,
+              backgroundColor: color.withValues(alpha: 0.2),
+            ),
+            Text(
+              '$secondsLeft',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
           ],
         ),
       ),
