@@ -1,0 +1,107 @@
+[
+  {
+    "id": "dart-basics",
+    "title": "Dart Basics",
+    "description": "Test your knowledge of Dart fundamentals.",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Which keyword declares an immutable variable in Dart?",
+        "options": ["var", "final", "let", "const var"],
+        "correctIndex": 1,
+        "explanation": "'final' declares a variable that can only be set once."
+      },
+      {
+        "id": "q2",
+        "text": "What is the entry point function in a Dart program?",
+        "options": ["start()", "init()", "main()", "run()"],
+        "correctIndex": 2,
+        "explanation": "Execution begins in the top-level main() function."
+      },
+      {
+        "id": "q3",
+        "text": "Which operator is used for null-aware access?",
+        "options": ["?.", "??", "!?", "??"],
+        "correctIndex": 0,
+        "explanation": "?. safely accesses a member only if the target is non-null."
+      }
+    ]
+  },
+  {
+    "id": "flutter-widgets",
+    "title": "Flutter Widgets",
+    "description": "How well do you know the widget tree?",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Which widget is immutable and described by its build method?",
+        "options": ["StatefulWidget", "StatelessWidget", "InheritedWidget", "RenderObjectWidget"],
+        "correctIndex": 1,
+        "explanation": "StatelessWidget describes its UI purely from its configuration."
+      },
+      {
+        "id": "q2",
+        "text": "What method rebuilds the widget tree in a StatefulWidget?",
+        "options": ["build()", "createState()", "setState()", "refresh()"],
+        "correctIndex": 2,
+        "explanation": "Calling setState() marks the State dirty and schedules a rebuild."
+      },
+      {
+        "id": "q3",
+        "text": "Which layout widget arranges children vertically?",
+        "options": ["Row", "Column", "Stack", "ListView"],
+        "correctIndex": 1,
+        "explanation": "Column lays out its children along the vertical main axis."
+      },
+      {
+        "id": "q4",
+        "text": "Which widget is used to add padding around another widget?",
+        "options": ["Margin", "SizedBox", "Padding", "Container only"],
+        "correctIndex": 2,
+        "explanation": "Padding insets its child by the given EdgeInsets."
+      }
+    ]
+  },
+  {
+    "id": "general-science",
+    "title": "General Science",
+    "description": "A mix of physics, chemistry, and biology questions.",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "What is the chemical symbol for gold?",
+        "options": ["Go", "Gd", "Au", "Ag"],
+        "correctIndex": 2,
+        "explanation": "Au comes from the Latin 'aurum'."
+      },
+      {
+        "id": "q2",
+        "text": "Which planet is known as the Red Planet?",
+        "options": ["Venus", "Mars", "Jupiter", "Saturn"],
+        "correctIndex": 1,
+        "explanation": "Iron oxide on the surface gives Mars its reddish color."
+      },
+      {
+        "id": "q3",
+        "text": "What gas do plants absorb from the atmosphere for photosynthesis?",
+        "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
+        "correctIndex": 2,
+        "explanation": "Plants use CO2 and water to produce glucose and oxygen."
+      },
+      {
+        "id": "q4",
+        "text": "How many bones are in the adult human body?",
+        "options": ["186", "206", "226", "246"],
+        "correctIndex": 1,
+        "explanation": "The adult human skeleton has 206 bones."
+      },
+      {
+        "id": "q5",
+        "text": "What is the speed of light in a vacuum (approx)?",
+        "options": ["3 x 10^5 km/s", "3 x 10^8 m/s", "3 x 10^6 m/s", "3 x 10^10 m/s"],
+        "correctIndex": 1,
+        "explanation": "Light travels at about 299,792 km/s in vacuum."
+      }
+    ]
+  }
+]
