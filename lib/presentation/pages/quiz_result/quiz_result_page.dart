@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/question.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
-import 'package:quiz_app/presentation/providers/score_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 
 /// Quiz result page in Anti-Design style.
@@ -20,23 +19,16 @@ import 'package:quiz_app/presentation/routes/app_router.dart';
 ///  (7) Gap swing — alternating tight and wide gaps throughout.
 ///
 /// Breakdown item surfaces:
-///   correct    -> acid slab, ink text
-///   wrong      -> alarm slab, paper text
-///   unanswered -> bubblegum slab, ink text
-class QuizResultPage extends ConsumerStatefulWidget {
+///   correct    → acid slab, ink text
+///   wrong      → alarm slab, paper text
+///   unanswered → bubblegum slab, ink text
+class QuizResultPage extends ConsumerWidget {
   const QuizResultPage({required this.quizId, super.key});
 
   final String quizId;
 
   @override
-  ConsumerState<QuizResultPage> createState() => _QuizResultPageState();
-}
-
-class _QuizResultPageState extends ConsumerState<QuizResultPage> {
-  bool _scoreSaved = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final playState = ref.watch(quizPlayNotifierProvider);
 
     // Guard: if the state is not active (user navigated here directly or
@@ -64,19 +56,6 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
     final scoreResult = ref
         .read(calculateQuizScoreProvider)
         .call(questions: quiz.questions, answers: answers);
-
-    // Save the score once, after the first successful build.
-    if (!_scoreSaved) {
-      _scoreSaved = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(scoreNotifierProvider.notifier).saveScore(
-              quizId: widget.quizId,
-              correct: scoreResult.correctCount,
-              total: scoreResult.totalCount,
-              percent: scoreResult.percent,
-            );
-      });
-    }
 
     final passed = scoreResult.passed;
     final slabColor = passed ? AppColors.acid : AppColors.alarm;

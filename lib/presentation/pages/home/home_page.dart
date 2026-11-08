@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/quiz.dart';
-import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 
@@ -71,50 +70,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(child: content),
-      // Admin-only FAB — only visible when the signed-in user is an admin.
-      floatingActionButton: _AdminFab(),
-    );
-  }
-}
-
-// ── Admin FAB ──────────────────────────────────────────────────────────────
-
-class _AdminFab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).valueOrNull;
-    if (user == null || !user.isAdmin) return const SizedBox.shrink();
-
-    return Semantics(
-      label: 'Create new quiz',
-      button: true,
-      child: GestureDetector(
-        onTap: () => context.push(AppRouter.quizCreate),
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.acid,
-            border: Border.all(color: AppColors.ink, width: AppColors.borderFrame),
-          ),
-          child: const Icon(Icons.add, color: AppColors.ink, size: 28),
-        ),
-      ),
     );
   }
 }
 
 // ── Nav strip ──────────────────────────────────────────────────────────────
 
-class _MonoNavStrip extends ConsumerWidget {
+class _MonoNavStrip extends StatelessWidget {
   const _MonoNavStrip();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).valueOrNull;
-    final displayName = user?.displayName ?? '';
-    final isAdmin = user?.isAdmin ?? false;
-
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -135,90 +101,7 @@ class _MonoNavStrip extends ConsumerWidget {
             ),
           ),
           const Spacer(),
-          // User label
-          if (displayName.isNotEmpty) ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  displayName.toUpperCase(),
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: AppColors.ink,
-                  ),
-                ),
-                if (isAdmin)
-                  Text(
-                    'ADMIN',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 8,
-                      letterSpacing: 1.5,
-                      color: AppColors.grid,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-          ],
-          // Friends button
-          Semantics(
-            label: 'Friends',
-            button: true,
-            child: GestureDetector(
-              onTap: () => context.push(AppRouter.friends),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.bubblegum,
-                  border: Border.all(
-                    color: AppColors.ink,
-                    width: AppColors.borderRule,
-                  ),
-                ),
-                child: Text(
-                  'FRIENDS',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppColors.gapTight),
-          // Sign-out button
-          Semantics(
-            label: 'Sign out',
-            button: true,
-            child: GestureDetector(
-              onTap: () async {
-                await ref.read(authNotifierProvider.notifier).signOut();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.ink,
-                    width: AppColors.borderRule,
-                  ),
-                ),
-                child: Text(
-                  'SIGN OUT',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          const _MonoNavItem(index: '01', label: 'HOME'),
         ],
       ),
     );
