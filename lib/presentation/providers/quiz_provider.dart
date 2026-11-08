@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/core/utils/result.dart';
-import 'package:quiz_app/data/datasources/local/quiz_local_datasource.dart';
-import 'package:quiz_app/data/repositories/quiz_repository_impl.dart';
+import 'package:quiz_app/data/datasources/remote/supabase_quiz_datasource.dart';
+import 'package:quiz_app/data/repositories/quiz_remote_repository_impl.dart';
 import 'package:quiz_app/domain/entities/quiz.dart';
 import 'package:quiz_app/domain/repositories/quiz_repository.dart';
 import 'package:quiz_app/domain/usecases/calculate_quiz_score.dart';
 import 'package:quiz_app/domain/usecases/get_quizzes.dart';
 import 'package:quiz_app/domain/usecases/get_quiz_questions.dart';
+import 'package:quiz_app/presentation/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Dependency injection via Riverpod providers.
@@ -18,12 +19,12 @@ import 'package:quiz_app/domain/usecases/get_quiz_questions.dart';
 // easy to override in tests with ProviderContainer overrides.
 // ---------------------------------------------------------------------------
 
-final quizLocalDataSourceProvider = Provider<QuizLocalDataSource>(
-  (ref) => const QuizLocalDataSource(),
+final quizLocalDataSourceProvider = Provider<SupabaseQuizDataSource>(
+  (ref) => SupabaseQuizDataSource(ref.read(supabaseClientProvider)),
 );
 
 final quizRepositoryProvider = Provider<QuizRepository>((ref) {
-  return QuizRepositoryImpl(ref.read(quizLocalDataSourceProvider));
+  return QuizRemoteRepositoryImpl(ref.read(quizLocalDataSourceProvider));
 });
 
 final getQuizzesProvider = Provider<GetQuizzes>(

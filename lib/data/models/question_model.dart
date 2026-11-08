@@ -26,6 +26,23 @@ class QuestionModel {
     );
   }
 
+  /// Deserializes a row from the Supabase `questions` table.
+  ///
+  /// Column names are snake_case (`correct_index`) unlike the local JSON
+  /// camelCase (`correctIndex`).
+  factory QuestionModel.fromSupabase(Map<String, dynamic> row) {
+    final options = (row['options'] as List<dynamic>)
+        .map((e) => e as String)
+        .toList(growable: false);
+    return QuestionModel(
+      id: row['id'] as String,
+      text: row['text'] as String,
+      options: options,
+      correctIndex: row['correct_index'] as int,
+      explanation: row['explanation'] as String?,
+    );
+  }
+
   final String id;
   final String text;
   final List<String> options;
