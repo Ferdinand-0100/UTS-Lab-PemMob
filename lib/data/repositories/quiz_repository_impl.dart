@@ -16,6 +16,7 @@ class QuizRepositoryImpl implements QuizRepository {
   List<Quiz>? _cachedQuizzes;
 
   /// Loads (and caches) the full quiz list from the data source.
+  @override
   Future<void> ensureLoaded() async {
     if (_cachedQuizzes != null) return;
     try {

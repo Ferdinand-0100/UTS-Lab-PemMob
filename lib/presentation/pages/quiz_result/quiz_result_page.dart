@@ -45,14 +45,14 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => context.go(AppRouter.home));
       return const Scaffold(
-        backgroundColor: AppColors.paper,
+        backgroundColor: c.paper,
         body: Center(
           child: SizedBox(
             width: 32,
             height: 32,
             child: CircularProgressIndicator(
               strokeWidth: AppColors.borderFrame,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
         ),
@@ -80,7 +80,7 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
 
     final passed = scoreResult.passed;
     final slabColor = passed ? AppColors.acid : AppColors.alarm;
-    final slabTextColor = passed ? AppColors.ink : AppColors.paper;
+    final slabTextColor = passed ? c.ink : c.paper;
     final percentStr = '${scoreResult.percent.toStringAsFixed(0)}%';
 
     final unansweredCount =
@@ -89,7 +89,7 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
         scoreResult.totalCount - scoreResult.correctCount - unansweredCount;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -165,7 +165,7 @@ class _TopStrip extends StatelessWidget {
           decoration: const BoxDecoration(
             border: Border(
               bottom:
-                  BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+                  BorderSide(color: c.ink, width: AppColors.borderRule),
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -177,7 +177,7 @@ class _TopStrip extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
-                  color: AppColors.ink,
+                  color: c.ink,
                 ),
               ),
               const Spacer(),
@@ -186,7 +186,7 @@ class _TopStrip extends StatelessWidget {
                 style: GoogleFonts.spaceMono(
                   fontSize: 11,
                   letterSpacing: 2.0,
-                  color: AppColors.grid,
+                  color: c.grid,
                 ),
               ),
             ],
@@ -204,7 +204,7 @@ class _TopStrip extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 letterSpacing: -1.0,
                 height: 1.0,
-                color: AppColors.grid.withValues(alpha: 0.22),
+                color: c.grid.withValues(alpha: 0.22),
               ),
             ),
           ),
@@ -293,7 +293,7 @@ class _ScoreSlab extends StatelessWidget {
               height: AppColors.stickerSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.paper,
+                color: c.paper,
                 border: Border.all(
                   color: slabTextColor,
                   width: AppColors.borderFrame,
@@ -309,7 +309,7 @@ class _ScoreSlab extends StatelessWidget {
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
                       height: 1.0,
-                      color: AppColors.ink,
+                      color: c.ink,
                     ),
                   ),
                   Text(
@@ -318,7 +318,7 @@ class _ScoreSlab extends StatelessWidget {
                       fontSize: 8,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
-                      color: AppColors.ink,
+                      color: c.ink,
                     ),
                   ),
                 ],
@@ -402,7 +402,7 @@ class _ScoreBar extends StatelessWidget {
       label: '$correct correct, $wrong wrong, $unanswered unanswered '
           'out of $total questions.',
       child: Container(
-        color: AppColors.paper,
+        color: c.paper,
         // gap swing: wide top, tight bottom
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
@@ -460,7 +460,7 @@ class _ScoreBar extends StatelessWidget {
             ),
             // gap swing: wide before hairline
             const SizedBox(height: 16),
-            Container(height: AppColors.borderRule, color: AppColors.ink),
+            Container(height: AppColors.borderRule, color: c.ink),
           ],
         ),
       ),
@@ -509,7 +509,7 @@ class _BarLegendItem extends StatelessWidget {
             fontSize: 9,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.0,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
       ],
@@ -527,9 +527,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.paper,
+        color: c.paper,
         border: Border(
-          bottom: BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -540,7 +540,7 @@ class _SectionLabel extends StatelessWidget {
             style: GoogleFonts.spaceMono(
               fontSize: 9,
               letterSpacing: 3.0,
-              color: AppColors.grid,
+              color: c.grid,
             ),
           ),
           const SizedBox(width: 12),
@@ -548,9 +548,9 @@ class _SectionLabel extends StatelessWidget {
           ExcludeSemantics(
             child: Row(
               children: [
-                Container(width: 16, height: AppColors.borderRule, color: AppColors.grid),
+                Container(width: 16, height: AppColors.borderRule, color: c.grid),
                 const SizedBox(width: 3),
-                Container(width: 4, height: 4, color: AppColors.grid),
+                Container(width: 4, height: 4, color: c.grid),
               ],
             ),
           ),
@@ -586,9 +586,9 @@ class _BreakdownItem extends StatelessWidget {
     final indexStr = (index + 1).toString().padLeft(2, '0');
 
     final (bgColor, fgColor, monoLabel) = switch (true) {
-      _ when isCorrect  => (AppColors.acid, AppColors.ink, '✓ CORRECT'),
-      _ when unanswered => (AppColors.bubblegum, AppColors.ink, '— SKIPPED'),
-      _                 => (AppColors.alarm, AppColors.paper, '✗ WRONG'),
+      _ when isCorrect  => (AppColors.acid, c.ink, '✓ CORRECT'),
+      _ when unanswered => (AppColors.bubblegum, c.ink, '— SKIPPED'),
+      _                 => (AppColors.alarm, c.paper, '✗ WRONG'),
     };
 
     String answerLine;
@@ -619,7 +619,7 @@ class _BreakdownItem extends StatelessWidget {
           decoration: BoxDecoration(
             color: bgColor,
             border: Border.all(
-              color: AppColors.ink,
+              color: c.ink,
               width: AppColors.borderRule,
             ),
           ),
@@ -692,3 +692,4 @@ class _BreakdownItem extends StatelessWidget {
     );
   }
 }
+

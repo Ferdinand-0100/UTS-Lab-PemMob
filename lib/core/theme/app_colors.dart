@@ -67,3 +67,10 @@ abstract final class AppColors {
   // ── Gap wide compact ─────────────────────────────────────────────
   static const double gapWideCompact = 64.0;
 }
+
+// Short alias used by existing UI components.
+abstract final class c {
+  static const Color paper = AppColors.paper;
+  static const Color ink = AppColors.ink;
+  static const Color grid = AppColors.grid;
+}

@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
+import 'package:quiz_app/core/utils/result.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_create_provider.dart';
+import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 
-/// Admin-only page for creating a new quiz with its questions.
+/// Admin-only page for creating a new quiz or editing an existing one.
+///
+/// Pass [editQuizId] to enter edit mode — the form will pre-populate from
+/// the cached quiz data and submit via [QuizCreateNotifier.updateQuiz].
 ///
 /// Anti-Design signature moves:
 ///  (1) Accent-serif italic in the headline.
@@ -15,7 +21,10 @@ import 'package:quiz_app/presentation/routes/app_router.dart';
 ///  (5) Hairline crop ticks between sections.
 ///  (6) Gap swing throughout.
 class QuizCreatePage extends ConsumerStatefulWidget {
-  const QuizCreatePage({super.key});
+  const QuizCreatePage({super.key, this.editQuizId});
+
+  /// When non-null, the page operates in edit mode for this quiz ID.
+  final String? editQuizId;
 
   @override
   ConsumerState<QuizCreatePage> createState() => _QuizCreatePageState();
@@ -25,20 +34,60 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _passingScoreCtrl = TextEditingController(
+    text: AppConstants.passingScorePercent.toStringAsFixed(0),
+  );
 
   // Each question is represented as a map of controllers.
   final List<_QuestionControllers> _questions = [];
 
+  bool get _isEditing => widget.editQuizId != null;
+
   @override
   void initState() {
     super.initState();
-    _addQuestion(); // start with one empty question
+    if (_isEditing) {
+      _prefillFromCache();
+    } else {
+      _addQuestion(); // start with one empty question for create mode
+    }
+  }
+
+  /// Pre-populates the form from the in-memory quiz cache when editing.
+  void _prefillFromCache() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final result = ref.read(getQuizQuestionsProvider).call(widget.editQuizId!);
+      switch (result) {
+        case Success(:final value):
+          _titleCtrl.text = value.title;
+          _descCtrl.text = value.description;
+          _passingScoreCtrl.text = value.passingScore.toStringAsFixed(0);
+          setState(() {
+            _questions.clear();
+            for (final q in value.questions) {
+              final ctrl = _QuestionControllers();
+              ctrl.textCtrl.text = q.text;
+              ctrl.explanationCtrl.text = q.explanation ?? '';
+              for (var i = 0; i < q.options.length && i < 4; i++) {
+                ctrl.optionCtrls[i].text = q.options[i];
+              }
+              ctrl.correctIndex = q.correctIndex;
+              _questions.add(ctrl);
+            }
+            if (_questions.isEmpty) _addQuestion();
+          });
+        case FailureResult():
+          // Quiz not in cache — just start with an empty form.
+          _addQuestion();
+      }
+    });
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
+    _passingScoreCtrl.dispose();
     for (final q in _questions) {
       q.dispose();
     }
@@ -58,6 +107,10 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final passingScore =
+        double.tryParse(_passingScoreCtrl.text.trim()) ??
+        AppConstants.passingScorePercent;
+
     // Build the payload
     final questions = _questions.asMap().entries.map((e) {
       final i = e.key;
@@ -73,11 +126,22 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
       );
     }).toList();
 
-    await ref.read(quizCreateNotifierProvider.notifier).createQuiz(
-          title: _titleCtrl.text.trim(),
-          description: _descCtrl.text.trim(),
-          questions: questions,
-        );
+    if (_isEditing) {
+      await ref.read(quizCreateNotifierProvider.notifier).updateQuiz(
+            quizId: widget.editQuizId!,
+            title: _titleCtrl.text.trim(),
+            description: _descCtrl.text.trim(),
+            passingScore: passingScore,
+            questions: questions,
+          );
+    } else {
+      await ref.read(quizCreateNotifierProvider.notifier).createQuiz(
+            title: _titleCtrl.text.trim(),
+            description: _descCtrl.text.trim(),
+            passingScore: passingScore,
+            questions: questions,
+          );
+    }
 
     final state = ref.read(quizCreateNotifierProvider);
     if (state.errorMessage == null && mounted) {
@@ -92,7 +156,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     // Guard — non-admins should never reach this page, but just in case.
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: AppColors.paper,
+        backgroundColor: c.paper,
         body: Center(
           child: Text(
             'ACCESS DENIED.',
@@ -105,7 +169,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     final createState = ref.watch(quizCreateNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,7 +187,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Headline (signature move 1)
-                            _Headline(),
+                            _Headline(isEditing: _isEditing),
                             const SizedBox(height: AppColors.nudge * 2),
                             _SectionLabel(label: 'QUIZ INFO'),
                             const SizedBox(height: AppColors.nudge),
@@ -146,6 +210,21 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                               validator: (v) => (v == null || v.trim().isEmpty)
                                   ? 'Required'
                                   : null,
+                            ),
+                            const SizedBox(height: AppColors.nudge),
+                            _FieldLabel('PASSING SCORE (%)'),
+                            const SizedBox(height: AppColors.gapTight),
+                            _CreateField(
+                              controller: _passingScoreCtrl,
+                              hint: '60',
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                final n = double.tryParse(v?.trim() ?? '');
+                                if (n == null || n < 0 || n > 100) {
+                                  return 'Enter a number between 0 and 100';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: AppColors.nudge * 2),
                             _SectionLabel(label: 'QUESTIONS'),
@@ -191,7 +270,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                                   createState.errorMessage!,
                                   style: GoogleFonts.spaceMono(
                                     fontSize: 11,
-                                    color: AppColors.paper,
+                                    color: c.paper,
                                   ),
                                 ),
                               ),
@@ -205,10 +284,10 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: AppColors.borderFrame,
-                                        color: AppColors.ink,
+                                        color: c.ink,
                                       ),
                                     )
-                                  : const Text('PUBLISH QUIZ'),
+                                  : Text(_isEditing ? 'SAVE CHANGES' : 'PUBLISH QUIZ'),
                             ),
                           ],
                         ),
@@ -236,7 +315,7 @@ class _TopStrip extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -250,7 +329,7 @@ class _TopStrip extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
           ),
@@ -260,7 +339,7 @@ class _TopStrip extends StatelessWidget {
             style: GoogleFonts.spaceMono(
               fontSize: 10,
               letterSpacing: 2.0,
-              color: AppColors.grid,
+              color: c.grid,
             ),
           ),
         ],
@@ -272,6 +351,9 @@ class _TopStrip extends StatelessWidget {
 // ── Headline ───────────────────────────────────────────────────────────────
 
 class _Headline extends StatelessWidget {
+  const _Headline({required this.isEditing});
+  final bool isEditing;
+
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.sizeOf(context).width;
@@ -282,13 +364,13 @@ class _Headline extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'CREATE',
+          isEditing ? 'EDIT' : 'CREATE',
           style: GoogleFonts.bricolageGrotesque(
             fontSize: displaySize,
             fontWeight: FontWeight.w800,
             height: AppColors.displayLeading,
             letterSpacing: -2.0,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
         // Accent-serif italic (signature move 1)
@@ -299,7 +381,7 @@ class _Headline extends StatelessWidget {
             fontStyle: FontStyle.italic,
             height: AppColors.displayLeading,
             letterSpacing: -1.5,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
       ],
@@ -326,7 +408,7 @@ class _SectionLabel extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.acid,
                 border: Border.all(
-                    color: AppColors.ink, width: AppColors.borderRule),
+                    color: c.ink, width: AppColors.borderRule),
               ),
               child: Text(
                 label,
@@ -334,7 +416,7 @@ class _SectionLabel extends StatelessWidget {
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2.0,
-                  color: AppColors.ink,
+                  color: c.ink,
                 ),
               ),
             ),
@@ -345,7 +427,7 @@ class _SectionLabel extends StatelessWidget {
         Expanded(
           child: Container(
             height: AppColors.borderRule,
-            color: AppColors.grid,
+            color: c.grid,
           ),
         ),
       ],
@@ -366,7 +448,7 @@ class _FieldLabel extends StatelessWidget {
       style: GoogleFonts.spaceMono(
         fontSize: 9,
         letterSpacing: 2.0,
-        color: AppColors.grid,
+        color: c.grid,
       ),
     );
   }
@@ -397,16 +479,16 @@ class _CreateField extends StatelessWidget {
       keyboardType: keyboardType,
       style: GoogleFonts.instrumentSans(
         fontSize: AppColors.bodySize,
-        color: AppColors.ink,
+        color: c.ink,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.instrumentSans(
           fontSize: AppColors.bodySize,
-          color: AppColors.grid,
+          color: c.grid,
         ),
         filled: true,
-        fillColor: AppColors.paper,
+        fillColor: c.paper,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
@@ -414,12 +496,12 @@ class _CreateField extends StatelessWidget {
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
-              BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+              BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
-              BorderSide(color: AppColors.ink, width: AppColors.borderFrame),
+              BorderSide(color: c.ink, width: AppColors.borderFrame),
         ),
         errorBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
@@ -461,7 +543,7 @@ class _QuestionCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.ink, width: AppColors.borderRule),
+        border: Border.all(color: c.ink, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -476,7 +558,7 @@ class _QuestionCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
-                  color: AppColors.grid,
+                  color: c.grid,
                 ),
               ),
               const Spacer(),
@@ -523,15 +605,15 @@ class _QuestionCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color:
-                            isCorrect ? AppColors.acid : AppColors.paper,
+                            isCorrect ? AppColors.acid : c.paper,
                         border: Border.all(
-                          color: AppColors.ink,
+                          color: c.ink,
                           width: AppColors.borderRule,
                         ),
                       ),
                       child: isCorrect
                           ? const Icon(Icons.check,
-                              size: 14, color: AppColors.ink)
+                              size: 14, color: c.ink)
                           : null,
                     ),
                   ),
@@ -541,7 +623,7 @@ class _QuestionCard extends StatelessWidget {
                     style: GoogleFonts.spaceMono(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                      color: c.ink,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -588,3 +670,4 @@ class _QuestionControllers {
     }
   }
 }
+

@@ -208,4 +208,50 @@ class AppTheme {
       ),
     );
   }
+  // ── Dark theme ───────────────────────────────────────────────
+  static ThemeData get dark {
+    final lightTheme = light;
+
+    return lightTheme.copyWith(
+      brightness: Brightness.dark,
+
+      colorScheme: lightTheme.colorScheme.copyWith(
+        brightness: Brightness.dark,
+        primary: Colors.white,
+        onPrimary: Colors.black,
+        surface: Colors.black,
+        onSurface: Colors.white,
+        outline: Colors.white,
+        outlineVariant: Colors.grey.shade800,
+      ),
+
+      scaffoldBackgroundColor: Colors.black,
+
+      textTheme: lightTheme.textTheme.apply(
+        bodyColor: Colors.white,
+        displayColor: Colors.white,
+      ),
+
+      appBarTheme: lightTheme.appBarTheme.copyWith(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: lightTheme.appBarTheme.titleTextStyle?.copyWith(
+          color: Colors.white,
+        ),
+        shape: const Border(
+          bottom: BorderSide(color: Colors.white, width: 1),
+        ),
+      ),
+
+      cardTheme: lightTheme.cardTheme.copyWith(
+        color: Colors.black,
+      ),
+
+      dividerTheme: const DividerThemeData(
+        color: Colors.white,
+        thickness: 1,
+      ),
+    );
+  }
 }

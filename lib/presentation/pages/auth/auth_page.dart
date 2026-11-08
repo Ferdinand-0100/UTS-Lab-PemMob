@@ -66,7 +66,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 style: GoogleFonts.spaceMono(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.paper,
+                  color: c.paper,
                 ),
               ),
             ),
@@ -94,7 +94,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -156,7 +156,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             _obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: AppColors.grid,
+                            color: c.grid,
                           ),
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
@@ -202,7 +202,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             authState.errorMessage!,
                             style: GoogleFonts.spaceMono(
                               fontSize: 11,
-                              color: AppColors.paper,
+                              color: c.paper,
                               height: 1.5,
                             ),
                           ),
@@ -218,7 +218,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: AppColors.borderFrame,
-                                  color: AppColors.ink,
+                                  color: c.ink,
                                 ),
                               )
                             : Text(_isRegister ? 'REGISTER' : 'SIGN IN'),
@@ -248,7 +248,7 @@ class _NavStrip extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(
           bottom:
-              BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+              BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -260,7 +260,7 @@ class _NavStrip extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 2.0,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           const Spacer(),
@@ -270,7 +270,7 @@ class _NavStrip extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
         ],
@@ -303,7 +303,7 @@ class _HeadlineBlock extends StatelessWidget {
               fontWeight: FontWeight.w800,
               height: AppColors.displayLeading,
               letterSpacing: -2.0,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           // Accent serif italic (signature move 1)
@@ -314,7 +314,7 @@ class _HeadlineBlock extends StatelessWidget {
               fontStyle: FontStyle.italic,
               height: AppColors.displayLeading,
               letterSpacing: -1.5,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
         ],
@@ -349,7 +349,7 @@ class _ModeToggleStrip extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           const Spacer(),
@@ -366,7 +366,7 @@ class _ModeToggleStrip extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppColors.ink,
+                      color: c.ink,
                       width: AppColors.borderRule,
                     ),
                   ),
@@ -376,7 +376,7 @@ class _ModeToggleStrip extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
-                      color: AppColors.ink,
+                      color: c.ink,
                     ),
                   ),
                 ),
@@ -403,7 +403,7 @@ class _CropTickDivider extends StatelessWidget {
             Expanded(
               child: Container(
                 height: AppColors.borderRule,
-                color: AppColors.grid,
+                color: c.grid,
               ),
             ),
             _tick(),
@@ -426,7 +426,7 @@ class _TickPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.grid
+      ..color = c.grid
       ..strokeWidth = AppColors.borderRule
       ..style = PaintingStyle.stroke;
     canvas.drawLine(
@@ -452,7 +452,7 @@ class _MonoLabel extends StatelessWidget {
       style: GoogleFonts.spaceMono(
         fontSize: 9,
         letterSpacing: 2.0,
-        color: AppColors.grid,
+        color: c.grid,
       ),
     );
   }
@@ -485,17 +485,17 @@ class _AuthField extends StatelessWidget {
       obscureText: obscure,
       style: GoogleFonts.instrumentSans(
         fontSize: AppColors.bodySize,
-        color: AppColors.ink,
+        color: c.ink,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.instrumentSans(
           fontSize: AppColors.bodySize,
-          color: AppColors.grid,
+          color: c.grid,
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: AppColors.paper,
+        fillColor: c.paper,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
@@ -503,14 +503,14 @@ class _AuthField extends StatelessWidget {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(
-            color: AppColors.ink,
+            color: c.ink,
             width: AppColors.borderRule,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(
-            color: AppColors.ink,
+            color: c.ink,
             width: AppColors.borderFrame,
           ),
         ),
@@ -556,9 +556,9 @@ class _AdminToggleRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: value ? AppColors.bubblegum : AppColors.paper,
+          color: value ? AppColors.bubblegum : c.paper,
           border: Border.all(
-            color: AppColors.ink,
+            color: c.ink,
             width: AppColors.borderRule,
           ),
         ),
@@ -568,14 +568,14 @@ class _AdminToggleRow extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: value ? AppColors.ink : AppColors.paper,
+                color: value ? c.ink : c.paper,
                 border: Border.all(
-                  color: AppColors.ink,
+                  color: c.ink,
                   width: AppColors.borderRule,
                 ),
               ),
               child: value
-                  ? const Icon(Icons.check, size: 14, color: AppColors.paper)
+                  ? const Icon(Icons.check, size: 14, color: c.paper)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -585,7 +585,7 @@ class _AdminToggleRow extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
           ],
@@ -594,3 +594,4 @@ class _AdminToggleRow extends StatelessWidget {
     );
   }
 }
+

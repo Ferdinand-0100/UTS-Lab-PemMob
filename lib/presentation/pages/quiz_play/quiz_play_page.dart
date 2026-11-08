@@ -46,7 +46,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.paper,
+        backgroundColor: c.paper,
         shape: const RoundedRectangleBorder(),
         title: Text(
           'QUIT QUIZ?',
@@ -54,14 +54,14 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
             fontSize: 14,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
         content: Text(
           'Your progress will be lost.',
           style: GoogleFonts.instrumentSans(
             fontSize: AppColors.bodySize,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
         actions: [
@@ -121,7 +121,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.paper,
+        backgroundColor: c.paper,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,7 +210,7 @@ class _TopStrip extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -222,7 +222,7 @@ class _TopStrip extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           const Spacer(),
@@ -231,7 +231,7 @@ class _TopStrip extends StatelessWidget {
             '${total.toString().padLeft(2, '0')}',
             style: GoogleFonts.spaceMono(
               fontSize: 11,
-              color: AppColors.ink,
+              color: c.ink,
               letterSpacing: 1.0,
             ),
           ),
@@ -270,7 +270,7 @@ class _ProgressSegments extends StatelessWidget {
                 margin: EdgeInsets.only(
                   right: i < total - 1 ? AppColors.borderRule * 2 : 0,
                 ),
-                color: filled ? AppColors.ink : AppColors.grid,
+                color: filled ? c.ink : c.grid,
               ),
             );
           }),
@@ -305,9 +305,9 @@ class _TimerSlab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (slabColor, textColor, stateLabel) = switch (timerState) {
-      _TimerUrgency.normal => (AppColors.acid, AppColors.ink, 'TIME'),
-      _TimerUrgency.volt   => (AppColors.volt, AppColors.paper, '!TIME'),
-      _TimerUrgency.alarm  => (AppColors.alarm, AppColors.paper, '!!TIME'),
+      _TimerUrgency.normal => (AppColors.acid, c.ink, 'TIME'),
+      _TimerUrgency.volt   => (AppColors.volt, c.paper, '!TIME'),
+      _TimerUrgency.alarm  => (AppColors.alarm, c.paper, '!!TIME'),
     };
 
     return Semantics(
@@ -418,7 +418,7 @@ class _OptionsDivider extends StatelessWidget {
           Expanded(
             child: Container(
               height: AppColors.borderRule,
-              color: AppColors.grid,
+              color: c.grid,
             ),
           ),
           _tickMark(),
@@ -440,7 +440,7 @@ class _TickPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.grid
+      ..color = c.grid
       ..strokeWidth = AppColors.borderRule
       ..style = PaintingStyle.stroke;
     canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), paint);
@@ -477,7 +477,7 @@ class _QuestionNumber extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 height: 0.9,
                 letterSpacing: -3.0,
-                color: AppColors.grid,
+                color: c.grid,
               ),
             ),
             const SizedBox(width: 4),
@@ -485,7 +485,7 @@ class _QuestionNumber extends StatelessWidget {
               '/ ${total.toString().padLeft(2, '0')}',
               style: GoogleFonts.spaceMono(
                 fontSize: 14,
-                color: AppColors.grid,
+                color: c.grid,
                 letterSpacing: 1.0,
               ),
             ),
@@ -510,7 +510,7 @@ class _QuestionText extends StatelessWidget {
         fontSize: 22,
         fontWeight: FontWeight.w600,
         height: 1.3,
-        color: AppColors.ink,
+        color: c.ink,
       ),
     );
   }
@@ -574,9 +574,9 @@ class _OptionButtonState extends State<_OptionButton> {
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: inverted ? AppColors.ink : AppColors.paper,
+                      color: inverted ? c.ink : c.paper,
                       border: Border.all(
-                        color: AppColors.ink,
+                        color: c.ink,
                         width: focused
                             ? AppColors.borderFrame
                             : AppColors.borderRule,
@@ -594,7 +594,7 @@ class _OptionButtonState extends State<_OptionButton> {
                           style: GoogleFonts.spaceMono(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: inverted ? AppColors.paper : AppColors.ink,
+                            color: inverted ? c.paper : c.ink,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -604,7 +604,7 @@ class _OptionButtonState extends State<_OptionButton> {
                             style: GoogleFonts.instrumentSans(
                               fontSize: AppColors.bodySize,
                               height: AppColors.bodyLeading,
-                              color: inverted ? AppColors.paper : AppColors.ink,
+                              color: inverted ? c.paper : c.ink,
                             ),
                           ),
                         ),
@@ -629,7 +629,7 @@ class _LoadingScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -639,7 +639,7 @@ class _LoadingScaffold extends StatelessWidget {
               height: 32,
               child: CircularProgressIndicator(
                 strokeWidth: AppColors.borderFrame,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
             const SizedBox(height: 16),
@@ -648,7 +648,7 @@ class _LoadingScaffold extends StatelessWidget {
               style: GoogleFonts.spaceMono(
                 fontSize: 11,
                 letterSpacing: 2.0,
-                color: AppColors.grid,
+                color: c.grid,
               ),
             ),
           ],
@@ -668,7 +668,7 @@ class _ErrorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -688,7 +688,7 @@ class _ErrorScaffold extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 2.0,
-                        color: AppColors.paper,
+                        color: c.paper,
                       ),
                     ),
                     const SizedBox(height: AppColors.gapTight),
@@ -696,7 +696,7 @@ class _ErrorScaffold extends StatelessWidget {
                       message,
                       style: GoogleFonts.instrumentSans(
                         fontSize: AppColors.bodySize,
-                        color: AppColors.paper,
+                        color: c.paper,
                         height: AppColors.bodyLeading,
                       ),
                     ),
@@ -724,3 +724,4 @@ class _ErrorScaffold extends StatelessWidget {
     );
   }
 }
+

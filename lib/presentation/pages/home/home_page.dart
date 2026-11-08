@@ -7,16 +7,17 @@ import 'package:quiz_app/domain/entities/quiz.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
+import 'package:quiz_app/presentation/providers/theme_provider.dart';
 
 /// Home page: lists available quizzes in Anti-Design style.
 ///
 /// Signature moves active on this screen:
 ///  (1) One accent-serif italic word inside the headline.
 ///  (2) Circular sticker overlapping the headline slab corner with quiz count.
-///  (3) Tilted mono stamp at –5 deg.
+///  (3) Tilted mono stamp at �5 deg.
 ///  (4) Decorative echo of "QUIZ" clipped by edge.
 ///  (5) Visible hairline grid guides / crop ticks.
-///  (6) Gap swing — consecutive gaps alternate tight/wide.
+///  (6) Gap swing � consecutive gaps alternate tight/wide.
 ///  (7) Neighbouring slabs of unequal width/indent.
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -65,19 +66,22 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else if (state.quizzes.isEmpty) {
       content = const _EmptyView();
     } else {
-      content = _QuizList(quizzes: state.quizzes, slabColors: _slabColors);
+      content = _QuizList(
+        quizzes: state.quizzes,
+        slabColors: _slabColors,
+        isAdmin: ref.watch(authStateProvider).valueOrNull?.isAdmin ?? false,
+      );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(child: content),
-      // Admin-only FAB — only visible when the signed-in user is an admin.
       floatingActionButton: _AdminFab(),
     );
   }
 }
 
-// ── Admin FAB ──────────────────────────────────────────────────────────────
+// -- Admin FAB --------------------------------------------------------------
 
 class _AdminFab extends ConsumerWidget {
   @override
@@ -95,16 +99,16 @@ class _AdminFab extends ConsumerWidget {
           height: 56,
           decoration: BoxDecoration(
             color: AppColors.acid,
-            border: Border.all(color: AppColors.ink, width: AppColors.borderFrame),
+            border: Border.all(color: c.ink, width: AppColors.borderFrame),
           ),
-          child: const Icon(Icons.add, color: AppColors.ink, size: 28),
+          child: const Icon(Icons.add, color: c.ink, size: 28),
         ),
       ),
     );
   }
 }
 
-// ── Nav strip ──────────────────────────────────────────────────────────────
+// -- Nav strip --------------------------------------------------------------
 
 class _MonoNavStrip extends ConsumerWidget {
   const _MonoNavStrip();
@@ -119,24 +123,24 @@ class _MonoNavStrip extends ConsumerWidget {
       width: double.infinity,
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          // Brand — fixed, never shrinks
+          // Brand � fixed, never shrinks
           Text(
             'QUIZ MASTER',
             style: GoogleFonts.spaceMono(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 2.0,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           const SizedBox(width: 8),
-          // Right-side actions — allowed to shrink on narrow screens
+          // Right-side actions  allowed to shrink on narrow screens
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -155,7 +159,7 @@ class _MonoNavStrip extends ConsumerWidget {
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
-                            color: AppColors.ink,
+                            color: c.ink,
                           ),
                         ),
                         if (isAdmin)
@@ -164,7 +168,7 @@ class _MonoNavStrip extends ConsumerWidget {
                             style: GoogleFonts.spaceMono(
                               fontSize: 8,
                               letterSpacing: 1.5,
-                              color: AppColors.grid,
+                              color: c.grid,
                             ),
                           ),
                       ],
@@ -172,35 +176,54 @@ class _MonoNavStrip extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                 ],
-                // Friends button
-                Semantics(
-                  label: 'Friends',
-                  button: true,
-                  child: GestureDetector(
-                    onTap: () => context.push(AppRouter.friends),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.bubblegum,
-                        border: Border.all(
-                          color: AppColors.ink,
-                          width: AppColors.borderRule,
+IconButton(
+  tooltip: 'Toggle dark mode',
+  visualDensity: VisualDensity.compact,
+  icon: Icon(
+    ref.watch(themeModeProvider) == ThemeMode.dark
+        ? Icons.light_mode
+        : Icons.dark_mode,
+  ),
+  onPressed: () {
+    final current = ref.read(themeModeProvider);
+
+    ref.read(themeModeProvider.notifier).state =
+        current == ThemeMode.dark
+            ? ThemeMode.light
+            : ThemeMode.dark;
+  },
+),
+                // Friends button hidden for admins
+                if (!isAdmin) ...[
+                  Semantics(
+                    label: 'Friends',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => context.push(AppRouter.friends),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.bubblegum,
+                          border: Border.all(
+                            color: c.ink,
+                            width: AppColors.borderRule,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'FRIENDS',
-                        style: GoogleFonts.spaceMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.5,
-                          color: AppColors.ink,
+                        child: Text(
+                          'FRIENDS',
+                          style: GoogleFonts.spaceMono(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            color: c.ink,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
+                  const SizedBox(width: 6),
+                ],
                 // Sign-out button
                 Semantics(
                   label: 'Sign out',
@@ -216,7 +239,7 @@ class _MonoNavStrip extends ConsumerWidget {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: AppColors.ink,
+                          color: c.ink,
                           width: AppColors.borderRule,
                         ),
                       ),
@@ -226,7 +249,7 @@ class _MonoNavStrip extends ConsumerWidget {
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
-                          color: AppColors.ink,
+                          color: c.ink,
                         ),
                       ),
                     ),
@@ -241,40 +264,12 @@ class _MonoNavStrip extends ConsumerWidget {
   }
 }
 
-class _MonoNavItem extends StatelessWidget {
-  const _MonoNavItem({required this.index, required this.label});
-  final String index;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: '$index ',
-            style: GoogleFonts.spaceMono(fontSize: 10, color: AppColors.grid),
-          ),
-          TextSpan(
-            text: label,
-            style: GoogleFonts.spaceMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Headline slab ──────────────────────────────────────────────────────────
+// -- Headline slab ----------------------------------------------------------
 
 class _HeadlineSlab extends StatelessWidget {
-  const _HeadlineSlab({required this.quizCount});
+  const _HeadlineSlab({required this.quizCount, required this.isAdmin});
   final int quizCount;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -284,13 +279,13 @@ class _HeadlineSlab extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: AppColors.paper,
+      color: c.paper,
       // gap swing: wide top, tight bottom
       padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          // ── decorative echo — "QUIZ" clipped off right edge (signature move 4)
+          // -- decorative echo � "QUIZ" clipped off right edge (signature move 4)
           Positioned(
             right: -displaySize * 0.28,
             top: 0,
@@ -302,12 +297,12 @@ class _HeadlineSlab extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   height: AppColors.displayLeading,
                   letterSpacing: -2.0,
-                  color: AppColors.grid.withValues(alpha: 0.28),
+                  color: c.grid.withValues(alpha: 0.28),
                 ),
               ),
             ),
           ),
-          // ── main content
+          // -- main content
           screenW < 600
               ? _headlineStack(displaySize)
               : _headlineRow(displaySize),
@@ -357,10 +352,10 @@ class _HeadlineSlab extends StatelessWidget {
             fontWeight: FontWeight.w800,
             height: AppColors.displayLeading,
             letterSpacing: -2.0,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
-        // Accent serif italic — the one exception word (signature move 1)
+        // Accent serif italic � the one exception word (signature move 1)
         Text(
           'Master',
           style: GoogleFonts.instrumentSerif(
@@ -368,7 +363,7 @@ class _HeadlineSlab extends StatelessWidget {
             fontStyle: FontStyle.italic,
             height: AppColors.displayLeading,
             letterSpacing: -1.5,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
       ],
@@ -382,9 +377,7 @@ class _HeadlineSlab extends StatelessWidget {
       children: [
         _monoFact('QUIZZES', '$quizCount AVAILABLE'),
         const SizedBox(height: AppColors.gapTight),
-        _monoFact('FORMAT', 'TIMED · MCQ'),
-        const SizedBox(height: AppColors.gapTight),
-        _monoFact('PASS', '60%'),
+        _monoFact('FORMAT', isAdmin ? 'EDIT MCQ' : 'TIMED MCQ'),
       ],
     );
   }
@@ -397,7 +390,7 @@ class _HeadlineSlab extends StatelessWidget {
           label,
           style: GoogleFonts.spaceMono(
             fontSize: 9,
-            color: AppColors.grid,
+            color: c.grid,
             letterSpacing: 1.5,
           ),
         ),
@@ -406,7 +399,7 @@ class _HeadlineSlab extends StatelessWidget {
           style: GoogleFonts.spaceMono(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
       ],
@@ -414,10 +407,10 @@ class _HeadlineSlab extends StatelessWidget {
   }
 }
 
-// ── Circular sticker (signature move 2) ───────────────────────────────────
+// -- Circular sticker (signature move 2) -----------------------------------
 
 /// Decorative sticker overlapping the headline/accent-strip boundary.
-/// Carries the quiz count — a real existing value, not a new claim.
+/// Carries the quiz count � a real existing value, not a new claim.
 /// Hidden from AT as it duplicates the mono fact already announced.
 class _CountSticker extends StatelessWidget {
   const _CountSticker({required this.count});
@@ -432,7 +425,7 @@ class _CountSticker extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.bubblegum,
-          border: Border.all(color: AppColors.ink, width: AppColors.borderRule),
+          border: Border.all(color: c.ink, width: AppColors.borderRule),
         ),
         alignment: Alignment.center,
         child: Column(
@@ -444,7 +437,7 @@ class _CountSticker extends StatelessWidget {
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
                 height: 1.0,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
             Text(
@@ -453,7 +446,7 @@ class _CountSticker extends StatelessWidget {
                 fontSize: 8,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.0,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
           ],
@@ -463,11 +456,12 @@ class _CountSticker extends StatelessWidget {
   }
 }
 
-// ── Accent strip with sticker overlap ─────────────────────────────────────
+// -- Accent strip with sticker overlap -------------------------------------
 
 class _AccentStripWithSticker extends StatelessWidget {
-  const _AccentStripWithSticker({required this.quizCount});
+  const _AccentStripWithSticker({required this.quizCount, required this.isAdmin});
   final int quizCount;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -482,12 +476,12 @@ class _AccentStripWithSticker extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                'SELECT A QUIZ TO BEGIN',
+                isAdmin ? 'SELECT A QUIZ TO EDIT' : 'SELECT A QUIZ TO BEGIN',
                 style: GoogleFonts.spaceMono(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2.0,
-                  color: AppColors.ink,
+                  color: c.ink,
                 ),
               ),
               const Spacer(),
@@ -502,17 +496,17 @@ class _AccentStripWithSticker extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: AppColors.ink,
+                        color: c.ink,
                         width: AppColors.borderRule,
                       ),
                     ),
                     child: Text(
-                      'BEGIN ->',
+                      isAdmin ? 'EDIT ->' : 'BEGIN ->',
                       style: GoogleFonts.spaceMono(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
-                        color: AppColors.ink,
+                        color: c.ink,
                       ),
                     ),
                   ),
@@ -532,7 +526,7 @@ class _AccentStripWithSticker extends StatelessWidget {
   }
 }
 
-// ── Crop tick ornaments (signature move 5) ────────────────────────────────
+// -- Crop tick ornaments (signature move 5) --------------------------------
 
 class _CropTicks extends StatelessWidget {
   const _CropTicks();
@@ -568,7 +562,7 @@ class _CropTickPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.grid
+      ..color = c.grid
       ..strokeWidth = AppColors.borderRule
       ..style = PaintingStyle.stroke;
     // Horizontal arm
@@ -589,27 +583,26 @@ class _CropTickPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Hairline grid guide ────────────────────────────────────────────────────
+// -- Hairline grid guide ----------------------------------------------------
 
 class _GridGuide extends StatelessWidget {
-  const _GridGuide({this.paddingH = 16.0});
-  final double paddingH;
+  const _GridGuide();
 
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: paddingH),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Container(
           height: AppColors.borderRule,
-          color: AppColors.grid,
+          color: c.grid,
         ),
       ),
     );
   }
 }
 
-// ── Quiz card ──────────────────────────────────────────────────────────────
+// -- Quiz card --------------------------------------------------------------
 
 /// Alternating width + indent (signature move 7) and immediate invert.
 /// Keyboard accessible via Actions + ActivateIntent.
@@ -621,6 +614,7 @@ class _QuizCard extends StatefulWidget {
     required this.slabColor,
     required this.nudgeRight,
     required this.widthFactor,
+    required this.isAdmin,
   });
 
   final Quiz quiz;
@@ -628,6 +622,7 @@ class _QuizCard extends StatefulWidget {
   final Color slabColor;
   final bool nudgeRight;
   final double widthFactor; // 1.0, 0.84, or 0.92
+  final bool isAdmin;
 
   @override
   State<_QuizCard> createState() => _QuizCardState();
@@ -638,7 +633,11 @@ class _QuizCardState extends State<_QuizCard> {
   bool _hovered = false;
 
   void _navigate() {
-    context.push(AppRouter.quizPlayPath(widget.quiz.id));
+    if (widget.isAdmin) {
+      context.push(AppRouter.quizEditPath(widget.quiz.id));
+    } else {
+      context.push(AppRouter.quizPlayPath(widget.quiz.id));
+    }
   }
 
   @override
@@ -651,8 +650,10 @@ class _QuizCardState extends State<_QuizCard> {
     final inverted = _pressed || _hovered;
 
     return Semantics(
-      label: 'Quiz ${widget.index + 1}: ${widget.quiz.title}. '
-          '${widget.quiz.description}. ${widget.quiz.length} questions.',
+      label: widget.isAdmin
+          ? 'Edit quiz ${widget.index + 1}: ${widget.quiz.title}.'
+          : 'Quiz ${widget.index + 1}: ${widget.quiz.title}. '
+              '${widget.quiz.description}. ${widget.quiz.length} questions.',
       button: true,
       child: Actions(
         actions: {
@@ -689,9 +690,9 @@ class _QuizCardState extends State<_QuizCard> {
                         width: cardWidth,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: inverted ? AppColors.ink : widget.slabColor,
+                            color: inverted ? c.ink : widget.slabColor,
                             border: Border.all(
-                              color: AppColors.ink,
+                              color: c.ink,
                               width: focused
                                   ? AppColors.borderFrame
                                   : AppColors.borderRule,
@@ -709,13 +710,26 @@ class _QuizCardState extends State<_QuizCard> {
                                       fontSize: 11,
                                       letterSpacing: 1.0,
                                       color: inverted
-                                          ? AppColors.paper
+                                          ? c.paper
                                               .withValues(alpha: 0.5)
-                                          : AppColors.ink
+                                          : c.ink
                                               .withValues(alpha: 0.5),
                                     ),
                                   ),
                                   const Spacer(),
+                                  if (!widget.isAdmin) ...[
+                                    Text(
+                                      'PASS ${widget.quiz.passingScore.toStringAsFixed(0)}%',
+                                      style: GoogleFonts.spaceMono(
+                                        fontSize: 11,
+                                        letterSpacing: 1.0,
+                                        color: inverted
+                                            ? c.paper.withValues(alpha: 0.6)
+                                            : c.ink.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                  ],
                                   Text(
                                     '${widget.quiz.length} QS',
                                     style: GoogleFonts.spaceMono(
@@ -723,8 +737,8 @@ class _QuizCardState extends State<_QuizCard> {
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 1.0,
                                       color: inverted
-                                          ? AppColors.paper
-                                          : AppColors.ink,
+                                          ? c.paper
+                                          : c.ink,
                                     ),
                                   ),
                                 ],
@@ -738,8 +752,8 @@ class _QuizCardState extends State<_QuizCard> {
                                   height: 0.9,
                                   letterSpacing: -0.5,
                                   color: inverted
-                                      ? AppColors.paper
-                                      : AppColors.ink,
+                                      ? c.paper
+                                      : c.ink,
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -749,8 +763,8 @@ class _QuizCardState extends State<_QuizCard> {
                                   fontSize: AppColors.supportingSize,
                                   height: AppColors.bodyLeading,
                                   color: inverted
-                                      ? AppColors.paper
-                                      : AppColors.ink,
+                                      ? c.paper
+                                      : c.ink,
                                 ),
                               ),
                               // gap swing: tight before hairline, wide below it
@@ -758,19 +772,19 @@ class _QuizCardState extends State<_QuizCard> {
                               Container(
                                 height: AppColors.borderRule,
                                 color: inverted
-                                    ? AppColors.paper.withValues(alpha: 0.4)
-                                    : AppColors.ink,
+                                    ? c.paper.withValues(alpha: 0.4)
+                                    : c.ink,
                               ),
                               const SizedBox(height: AppColors.gapTight),
                               Text(
-                                'START ->',
+                                widget.isAdmin ? 'EDIT ->' : 'START ->',
                                 style: GoogleFonts.spaceMono(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 2.0,
                                   color: inverted
-                                      ? AppColors.paper
-                                      : AppColors.ink,
+                                      ? c.paper
+                                      : c.ink,
                                 ),
                               ),
                             ],
@@ -789,15 +803,16 @@ class _QuizCardState extends State<_QuizCard> {
   }
 }
 
-// ── Full quiz list view ────────────────────────────────────────────────────
+// -- Full quiz list view ----------------------------------------------------
 
-// Width cycle: 100%, 84%, 92% — never equal twice in a row.
+// Width cycle: 100%, 84%, 92% � never equal twice in a row.
 const _widthCycle = [1.0, 0.84, 0.92];
 
 class _QuizList extends StatelessWidget {
-  const _QuizList({required this.quizzes, required this.slabColors});
+  const _QuizList({required this.quizzes, required this.slabColors, required this.isAdmin});
   final List<Quiz> quizzes;
   final List<Color> slabColors;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -808,10 +823,10 @@ class _QuizList extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _MonoNavStrip(),
-              _HeadlineSlab(quizCount: quizzes.length),
+              _HeadlineSlab(quizCount: quizzes.length, isAdmin: isAdmin),
               // gap swing: tight after headline, sticker overlaps here
               const SizedBox(height: AppColors.gapTight),
-              _AccentStripWithSticker(quizCount: quizzes.length),
+              _AccentStripWithSticker(quizCount: quizzes.length, isAdmin: isAdmin),
               // gap swing: wide after accent strip
               const SizedBox(height: AppColors.nudge * 2),
               // Crop ticks (signature move 5)
@@ -838,6 +853,7 @@ class _QuizList extends StatelessWidget {
                 slabColor: slab,
                 nudgeRight: index.isEven,
                 widthFactor: widthFactor,
+                isAdmin: isAdmin,
               );
             },
           ),
@@ -847,7 +863,7 @@ class _QuizList extends StatelessWidget {
   }
 }
 
-// ── Loading state ──────────────────────────────────────────────────────────
+// -- Loading state ----------------------------------------------------------
 
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
@@ -868,7 +884,7 @@ class _LoadingView extends StatelessWidget {
                 height: 32,
                 child: CircularProgressIndicator(
                   strokeWidth: AppColors.borderFrame,
-                  color: AppColors.ink,
+                  color: c.ink,
                 ),
               ),
               const SizedBox(height: 16),
@@ -877,7 +893,7 @@ class _LoadingView extends StatelessWidget {
                 style: GoogleFonts.spaceMono(
                   fontSize: 11,
                   letterSpacing: 2.0,
-                  color: AppColors.grid,
+                  color: c.grid,
                 ),
               ),
             ],
@@ -889,7 +905,7 @@ class _LoadingView extends StatelessWidget {
   }
 }
 
-// ── Error state ────────────────────────────────────────────────────────────
+// -- Error state ------------------------------------------------------------
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
@@ -922,7 +938,7 @@ class _ErrorView extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 2.0,
-                          color: AppColors.paper,
+                          color: c.paper,
                         ),
                       ),
                       const SizedBox(height: AppColors.gapTight),
@@ -930,7 +946,7 @@ class _ErrorView extends StatelessWidget {
                         message,
                         style: GoogleFonts.instrumentSans(
                           fontSize: AppColors.bodySize,
-                          color: AppColors.paper,
+                          color: c.paper,
                           height: AppColors.bodyLeading,
                         ),
                       ),
@@ -951,7 +967,7 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────
+// -- Empty state ------------------------------------------------------------
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView();
@@ -971,7 +987,7 @@ class _EmptyView extends StatelessWidget {
               fontSize: 48,
               fontWeight: FontWeight.w800,
               height: AppColors.displayLeading,
-              color: AppColors.grid,
+              color: c.grid,
             ),
           ),
         ),

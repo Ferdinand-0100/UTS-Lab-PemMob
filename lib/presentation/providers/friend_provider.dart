@@ -124,7 +124,7 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
       if (acceptedIds.isNotEmpty) {
         final scoreRows = await _client
             .from('scores')
-            .select('percent, correct, total, created_at, quiz_id, profiles(display_name), quizzes(title)')
+            .select('percent, correct, total, created_at, quiz_id, profiles(display_name), quizzes(title, passing_score)')
             .inFilter('user_id', acceptedIds)
             .order('created_at', ascending: false)
             .limit(50);
@@ -133,11 +133,13 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
           final profile = row['profiles'] as Map<String, dynamic>?;
           final quiz = row['quizzes'] as Map<String, dynamic>?;
           final percent = (row['percent'] as num).toDouble();
+          final passingScore =
+              (quiz?['passing_score'] as num?)?.toDouble() ?? 60.0;
           scores.add(FriendScore(
             displayName: profile?['display_name'] as String? ?? 'Unknown',
             quizTitle: quiz?['title'] as String? ?? 'Unknown Quiz',
             percent: percent,
-            passed: percent >= 60,
+            passed: percent >= passingScore,
             createdAt: DateTime.parse(row['created_at'] as String),
           ));
         }
@@ -160,16 +162,21 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
     final user = _ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
+    // Clear any previous error before attempting
+    state = state.copyWith(errorMessage: null);
+
     try {
-      // Look up the target user by email via profiles + auth.
       final results = await _client
           .from('profiles')
           .select('id, display_name')
-          .eq('email', email)
+          .eq('email', email.toLowerCase().trim())
           .limit(1);
 
       if (results.isEmpty) {
-        state = state.copyWith(errorMessage: 'No user found with that email.');
+        state = state.copyWith(
+          errorMessage:
+              'No user found with that email. Make sure the email is correct and the user has registered.',
+        );
         return;
       }
 
@@ -188,10 +195,11 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
       await load();
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
-        state =
-            state.copyWith(errorMessage: 'Friend request already sent.');
+        state = state.copyWith(
+            errorMessage: 'A friend request with this user already exists.');
       } else {
-        state = state.copyWith(errorMessage: 'Could not send request.');
+        state = state.copyWith(
+            errorMessage: 'Could not send request: ${e.message}');
       }
     } catch (_) {
       state = state.copyWith(errorMessage: 'Could not send request.');

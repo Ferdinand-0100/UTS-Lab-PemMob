@@ -16,7 +16,7 @@ class SupabaseQuizDataSource {
   Future<List<QuizModel>> loadAll() async {
     final rows = await _client
         .from('quizzes')
-        .select('id, title, description, questions(id, text, options, correct_index, explanation, order)')
+        .select('id, title, description, passing_score, questions(id, text, options, correct_index, explanation, order)')
         .order('created_at');
 
     return rows.map<QuizModel>(_rowToModel).toList(growable: false);
@@ -26,7 +26,7 @@ class SupabaseQuizDataSource {
   Future<QuizModel> loadById(String id) async {
     final row = await _client
         .from('quizzes')
-        .select('id, title, description, questions(id, text, options, correct_index, explanation, order)')
+        .select('id, title, description, passing_score, questions(id, text, options, correct_index, explanation, order)')
         .eq('id', id)
         .single();
 
@@ -47,6 +47,7 @@ class SupabaseQuizDataSource {
       id: row['id'] as String,
       title: row['title'] as String,
       description: row['description'] as String,
+      passingScore: (row['passing_score'] as num?)?.toDouble() ?? 60.0,
       questions: questions,
     );
   }

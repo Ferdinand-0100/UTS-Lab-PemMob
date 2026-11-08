@@ -1,3 +1,4 @@
+import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/data/models/question_model.dart';
 import 'package:quiz_app/domain/entities/quiz.dart';
 
@@ -12,6 +13,7 @@ class QuizModel {
     required this.title,
     required this.description,
     required this.questions,
+    this.passingScore = AppConstants.passingScorePercent,
   });
 
   /// Parses a full quiz payload including nested questions.
@@ -23,6 +25,8 @@ class QuizModel {
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String,
+      passingScore: (json['passing_score'] as num?)?.toDouble()
+          ?? AppConstants.passingScorePercent,
       questions: questions,
     );
   }
@@ -33,6 +37,8 @@ class QuizModel {
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String,
+      passingScore: (json['passing_score'] as num?)?.toDouble()
+          ?? AppConstants.passingScorePercent,
       questions: const [],
     );
   }
@@ -41,6 +47,7 @@ class QuizModel {
   final String title;
   final String description;
   final List<QuestionModel> questions;
+  final double passingScore;
 
   /// Converts to a domain [Quiz] entity.
   ///
@@ -50,6 +57,7 @@ class QuizModel {
         id: id,
         title: title,
         description: description,
+        passingScore: passingScore,
         questions: includeQuestions
             ? questions.map((q) => q.toEntity()).toList(growable: false)
             : const [],

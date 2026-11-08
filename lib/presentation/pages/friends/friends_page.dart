@@ -49,7 +49,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     final state = ref.watch(friendListProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: c.paper,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,7 +78,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                       state.errorMessage!,
                                       style: GoogleFonts.spaceMono(
                                         fontSize: 11,
-                                        color: AppColors.paper,
+                                        color: c.paper,
                                       ),
                                     ),
                                   ),
@@ -110,7 +110,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 1.5,
-                                            color: AppColors.ink,
+                                            color: c.ink,
                                           ),
                                         ),
                                       ),
@@ -135,7 +135,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                   fontSize: 28,
                                   fontWeight: FontWeight.w800,
                                   height: AppColors.displayLeading,
-                                  color: AppColors.grid,
+                                  color: c.grid,
                                 ),
                               ),
                             ),
@@ -200,7 +200,7 @@ class _TopStrip extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(
           bottom:
-              BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+              BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -214,7 +214,7 @@ class _TopStrip extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.ink,
+                color: c.ink,
               ),
             ),
           ),
@@ -225,7 +225,7 @@ class _TopStrip extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
         ],
@@ -253,7 +253,7 @@ class _Headline extends StatelessWidget {
             fontWeight: FontWeight.w800,
             height: AppColors.displayLeading,
             letterSpacing: -2.0,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
         Text(
@@ -263,7 +263,7 @@ class _Headline extends StatelessWidget {
             fontStyle: FontStyle.italic,
             height: AppColors.displayLeading,
             letterSpacing: -1.5,
-            color: AppColors.ink,
+            color: c.ink,
           ),
         ),
       ],
@@ -290,7 +290,7 @@ class _SectionLabel extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.bubblegum,
                 border: Border.all(
-                    color: AppColors.ink, width: AppColors.borderRule),
+                    color: c.ink, width: AppColors.borderRule),
               ),
               child: Text(
                 label,
@@ -298,7 +298,7 @@ class _SectionLabel extends StatelessWidget {
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2.0,
-                  color: AppColors.ink,
+                  color: c.ink,
                 ),
               ),
             ),
@@ -308,7 +308,7 @@ class _SectionLabel extends StatelessWidget {
         Expanded(
           child: Container(
             height: AppColors.borderRule,
-            color: AppColors.grid,
+            color: c.grid,
           ),
         ),
       ],
@@ -329,24 +329,24 @@ class _FriendField extends StatelessWidget {
       controller: controller,
       keyboardType: TextInputType.emailAddress,
       style: GoogleFonts.instrumentSans(
-          fontSize: AppColors.bodySize, color: AppColors.ink),
+          fontSize: AppColors.bodySize, color: c.ink),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.instrumentSans(
-            fontSize: AppColors.bodySize, color: AppColors.grid),
+            fontSize: AppColors.bodySize, color: c.grid),
         filled: true,
-        fillColor: AppColors.paper,
+        fillColor: c.paper,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
-              BorderSide(color: AppColors.ink, width: AppColors.borderRule),
+              BorderSide(color: c.ink, width: AppColors.borderRule),
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
-              BorderSide(color: AppColors.ink, width: AppColors.borderFrame),
+              BorderSide(color: c.ink, width: AppColors.borderFrame),
         ),
       ),
     );
@@ -370,13 +370,13 @@ class _FriendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = entry.status == FriendshipStatus.pending;
     final bgColor =
-        isPending ? AppColors.bubblegum : AppColors.paper;
+        isPending ? AppColors.bubblegum : c.paper;
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border:
-            Border.all(color: AppColors.ink, width: AppColors.borderRule),
+            Border.all(color: c.ink, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -391,7 +391,7 @@ class _FriendCard extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.0,
-                    color: AppColors.ink,
+                    color: c.ink,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -404,7 +404,7 @@ class _FriendCard extends StatelessWidget {
                   style: GoogleFonts.spaceMono(
                     fontSize: 9,
                     letterSpacing: 1.5,
-                    color: AppColors.grid,
+                    color: c.grid,
                   ),
                 ),
               ],
@@ -424,7 +424,7 @@ class _FriendCard extends StatelessWidget {
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
-                    color: AppColors.ink,
+                    color: c.ink,
                   ),
                 ),
               ),
@@ -439,7 +439,7 @@ class _FriendCard extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: AppColors.ink, width: AppColors.borderRule),
+                    color: c.ink, width: AppColors.borderRule),
               ),
               child: Text(
                 isPending ? 'CANCEL' : 'REMOVE',
@@ -467,14 +467,14 @@ class _ScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = score.passed ? AppColors.acid : AppColors.alarm;
-    final fgColor = score.passed ? AppColors.ink : AppColors.paper;
+    final fgColor = score.passed ? c.ink : c.paper;
     final percentStr = '${score.percent.toStringAsFixed(0)}%';
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border:
-            Border.all(color: AppColors.ink, width: AppColors.borderRule),
+            Border.all(color: c.ink, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -549,7 +549,7 @@ class _LoadingView extends StatelessWidget {
             height: 32,
             child: CircularProgressIndicator(
               strokeWidth: AppColors.borderFrame,
-              color: AppColors.ink,
+              color: c.ink,
             ),
           ),
           const SizedBox(height: 16),
@@ -558,7 +558,7 @@ class _LoadingView extends StatelessWidget {
             style: GoogleFonts.spaceMono(
               fontSize: 11,
               letterSpacing: 2.0,
-              color: AppColors.grid,
+              color: c.grid,
             ),
           ),
         ],
@@ -566,3 +566,4 @@ class _LoadingView extends StatelessWidget {
     );
   }
 }
+
