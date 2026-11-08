@@ -100,10 +100,30 @@ final homeNotifierProvider =
   );
 });
 
-/// Live quiz-play state: current question index and the map of
-/// question id -> selected option index.
-class QuizPlayState {
-  const QuizPlayState({
+// ---------------------------------------------------------------------------
+// Quiz-play state
+// ---------------------------------------------------------------------------
+
+/// Describes the lifecycle of a quiz-play session.
+///
+/// - [QuizPlayLoading]  — start() has not completed yet.
+/// - [QuizPlayError]    — start() failed (e.g. unknown quiz id).
+/// - [QuizPlayActive]   — a quiz is in progress or just completed.
+sealed class QuizPlayState {
+  const QuizPlayState();
+}
+
+class QuizPlayLoading extends QuizPlayState {
+  const QuizPlayLoading();
+}
+
+class QuizPlayError extends QuizPlayState {
+  const QuizPlayError(this.message);
+  final String message;
+}
+
+class QuizPlayActive extends QuizPlayState {
+  const QuizPlayActive({
     required this.quiz,
     this.currentIndex = 0,
     this.answers = const {},
@@ -119,13 +139,13 @@ class QuizPlayState {
   /// Seconds remaining for the current question. Reaches 0 on timeout.
   final int timeLeft;
 
-  QuizPlayState copyWith({
+  QuizPlayActive copyWith({
     int? currentIndex,
     Map<String, int>? answers,
     bool? isComplete,
     int? timeLeft,
   }) {
-    return QuizPlayState(
+    return QuizPlayActive(
       quiz: quiz,
       currentIndex: currentIndex ?? this.currentIndex,
       answers: answers ?? this.answers,
@@ -135,8 +155,8 @@ class QuizPlayState {
   }
 }
 
-class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
-  QuizPlayNotifier(this._getQuizQuestions) : super(null);
+class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
+  QuizPlayNotifier(this._getQuizQuestions) : super(const QuizPlayLoading());
 
   final GetQuizQuestions _getQuizQuestions;
 
@@ -145,20 +165,21 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
   /// Loads a quiz by id and initializes play state.
   void start(String quizId) {
     _timer?.cancel();
+    state = const QuizPlayLoading();
     final result = _getQuizQuestions(quizId);
     switch (result) {
       case Success(:final value):
-        state = QuizPlayState(quiz: value);
+        state = QuizPlayActive(quiz: value);
         _startTimer();
-      case FailureResult():
-        state = null;
+      case FailureResult(:final failure):
+        state = QuizPlayError(failure.message);
     }
   }
 
   /// Records an answer for the current question and advances the index.
   void answer(int optionIndex) {
     final current = state;
-    if (current == null || current.isComplete) return;
+    if (current is! QuizPlayActive || current.isComplete) return;
     final question = current.quiz.questions[current.currentIndex];
     final updatedAnswers = Map<String, int>.from(current.answers)
       ..[question.id] = optionIndex;
@@ -169,12 +190,12 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
   /// Called when the timer hits zero: advance with no answer recorded.
   void _timeout() {
     final current = state;
-    if (current == null || current.isComplete) return;
+    if (current is! QuizPlayActive || current.isComplete) return;
     _advanceFrom(current.copyWith(timeLeft: 0));
   }
 
   /// Shared logic for advancing to the next question or finishing the quiz.
-  void _advanceFrom(QuizPlayState current) {
+  void _advanceFrom(QuizPlayActive current) {
     _timer?.cancel();
 
     final isLast = current.currentIndex == current.quiz.questions.length - 1;
@@ -193,7 +214,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final current = state;
-      if (current == null || current.isComplete) {
+      if (current is! QuizPlayActive || current.isComplete) {
         timer.cancel();
         return;
       }
@@ -209,7 +230,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
   /// Resets the notifier back to idle so a new quiz can start cleanly.
   void reset() {
     _timer?.cancel();
-    state = null;
+    state = const QuizPlayLoading();
   }
 
   @override
@@ -220,6 +241,6 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState?> {
 }
 
 final quizPlayNotifierProvider =
-    StateNotifierProvider<QuizPlayNotifier, QuizPlayState?>((ref) {
+    StateNotifierProvider<QuizPlayNotifier, QuizPlayState>((ref) {
   return QuizPlayNotifier(ref.read(getQuizQuestionsProvider));
 });

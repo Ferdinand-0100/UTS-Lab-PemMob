@@ -31,7 +31,9 @@ class QuizResultPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playState = ref.watch(quizPlayNotifierProvider);
 
-    if (playState == null) {
+    // Guard: if the state is not active (user navigated here directly or
+    // state was reset), send them back home.
+    if (playState is! QuizPlayActive) {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => context.go(AppRouter.home));
       return const Scaffold(

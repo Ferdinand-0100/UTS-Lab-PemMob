@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,11 +37,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_loaded) {
-        _loaded = true;
-        ref.read(quizPlayNotifierProvider.notifier).reset();
-        ref.read(homeNotifierProvider.notifier).load();
-      }
+      if (!mounted || _loaded) return;
+      ref.read(quizPlayNotifierProvider.notifier).reset();
+      ref.read(homeNotifierProvider.notifier).load();
+      // Rebuild so the "not loaded yet" loading view hands over to real state.
+      setState(() => _loaded = true);
     });
   }
 
@@ -49,19 +49,27 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final state = ref.watch(homeNotifierProvider);
 
+    final Widget content;
+    if (!_loaded || state.loading) {
+      // FIX: before the first post-frame load() the initial state would
+      // otherwise render _EmptyView for one frame.
+      content = const _LoadingView();
+    } else if (state.errorMessage != null) {
+      content = _ErrorView(
+        message: state.errorMessage!,
+        onRetry: () {
+          ref.read(homeNotifierProvider.notifier).load();
+        },
+      );
+    } else if (state.quizzes.isEmpty) {
+      content = const _EmptyView();
+    } else {
+      content = _QuizList(quizzes: state.quizzes, slabColors: _slabColors);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.paper,
-      body: SafeArea(
-        child: switch (state.loading) {
-          true => const _LoadingView(),
-          false when state.errorMessage != null =>
-            _ErrorView(message: state.errorMessage!, onRetry: () {
-              ref.read(homeNotifierProvider.notifier).load();
-            }),
-          false when state.quizzes.isEmpty => const _EmptyView(),
-          _ => _QuizList(quizzes: state.quizzes, slabColors: _slabColors),
-        },
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
@@ -93,7 +101,7 @@ class _MonoNavStrip extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _MonoNavItem(index: '01', label: 'HOME'),
+          const _MonoNavItem(index: '01', label: 'HOME'),
         ],
       ),
     );
@@ -181,7 +189,9 @@ class _HeadlineSlab extends StatelessWidget {
       children: [
         _displayText(displaySize),
         // gap swing: wide
-        const SizedBox(height: AppColors.gapWide ~/ 4 * 1),
+        // FIX: `~/` returns int, which is not assignable to SizedBox.height
+        // (double). Use `/` so the value stays a double.
+        const SizedBox(height: AppColors.gapWide / 4),
         _factsColumn(),
       ],
     );
@@ -364,7 +374,7 @@ class _AccentStripWithSticker extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'BEGIN →',
+                      'BEGIN ->',
                       style: GoogleFonts.spaceMono(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
@@ -500,15 +510,12 @@ class _QuizCardState extends State<_QuizCard> {
 
   @override
   Widget build(BuildContext context) {
-    final screenW = MediaQuery.sizeOf(context).width;
     // gap swing: even index gets wide gap above, odd gets tight
     final bottomGap =
         widget.index.isEven ? AppColors.gapWide / 8 : AppColors.gapTight;
 
     final indexStr = (widget.index + 1).toString().padLeft(2, '0');
     final inverted = _pressed || _hovered;
-
-    final cardWidth = screenW * widget.widthFactor;
 
     return Semantics(
       label: 'Quiz ${widget.index + 1}: ${widget.quiz.title}. '
@@ -528,39 +535,38 @@ class _QuizCardState extends State<_QuizCard> {
             final focused = Focus.of(ctx).hasFocus;
             return Padding(
               padding: EdgeInsets.only(bottom: bottomGap),
-              child: Align(
-                alignment: widget.nudgeRight
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
-                child: GestureDetector(
-                  onTap: _navigate,
-                  onTapDown: (_) => setState(() => _pressed = true),
-                  onTapUp: (_) => setState(() => _pressed = false),
-                  onTapCancel: () => setState(() => _pressed = false),
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    onEnter: (_) => setState(() => _hovered = true),
-                    onExit: (_) => setState(() => _hovered = false),
-                    child: SizedBox(
-                      // Clamp: min must never exceed max. On web the
-                      // viewport can report 0 during the first layout
-                      // pass, so guard with a safe lower bound of 0.
-                      width: screenW > 32
-                          ? cardWidth.clamp(0.0, screenW - 32)
-                          : cardWidth,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: inverted ? AppColors.ink : widget.slabColor,
-                          border: Border.all(
-                            color: AppColors.ink,
-                            width: focused
-                                ? AppColors.borderFrame
-                                : AppColors.borderRule,
+              // FIX: size relative to the space the list actually gives the
+              // card (screen minus 16px padding each side), not the screen.
+              child: LayoutBuilder(builder: (context, constraints) {
+                final cardWidth = constraints.maxWidth * widget.widthFactor;
+                return Align(
+                  alignment: widget.nudgeRight
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: _navigate,
+                    onTapDown: (_) => setState(() => _pressed = true),
+                    onTapUp: (_) => setState(() => _pressed = false),
+                    onTapCancel: () => setState(() => _pressed = false),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      onEnter: (_) => setState(() => _hovered = true),
+                      onExit: (_) => setState(() => _hovered = false),
+                      child: SizedBox(
+                        width: cardWidth,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: inverted ? AppColors.ink : widget.slabColor,
+                            border: Border.all(
+                              color: AppColors.ink,
+                              width: focused
+                                  ? AppColors.borderFrame
+                                  : AppColors.borderRule,
+                            ),
                           ),
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
@@ -570,8 +576,10 @@ class _QuizCardState extends State<_QuizCard> {
                                       fontSize: 11,
                                       letterSpacing: 1.0,
                                       color: inverted
-                                          ? AppColors.paper.withValues(alpha: 0.5)
-                                          : AppColors.ink.withValues(alpha: 0.5),
+                                          ? AppColors.paper
+                                              .withValues(alpha: 0.5)
+                                          : AppColors.ink
+                                              .withValues(alpha: 0.5),
                                     ),
                                   ),
                                   const Spacer(),
@@ -622,7 +630,7 @@ class _QuizCardState extends State<_QuizCard> {
                               ),
                               const SizedBox(height: AppColors.gapTight),
                               Text(
-                                'START →',
+                                'START ->',
                                 style: GoogleFonts.spaceMono(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -638,8 +646,8 @@ class _QuizCardState extends State<_QuizCard> {
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
             );
           }),
         ),
@@ -667,8 +675,6 @@ class _QuizList extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _MonoNavStrip(),
-              // gap swing: wide before headline
-              const SizedBox(height: 0),
               _HeadlineSlab(quizCount: quizzes.length),
               // gap swing: tight after headline, sticker overlaps here
               const SizedBox(height: AppColors.gapTight),

@@ -40,13 +40,64 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     });
   }
 
+  /// Shows a confirmation dialog when the user tries to leave mid-quiz.
+  /// Returns true to allow the pop, false to stay.
+  Future<bool> _confirmExit() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        shape: const RoundedRectangleBorder(),
+        title: Text(
+          'QUIT QUIZ?',
+          style: GoogleFonts.spaceMono(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: AppColors.ink,
+          ),
+        ),
+        content: Text(
+          'Your progress will be lost.',
+          style: GoogleFonts.instrumentSans(
+            fontSize: AppColors.bodySize,
+            color: AppColors.ink,
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('STAY'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('QUIT'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final playState = ref.watch(quizPlayNotifierProvider);
 
-    if (playState == null) return const _LoadingScaffold();
+    // Error state — quiz id not found or data source failure.
+    if (playState is QuizPlayError) {
+      return _ErrorScaffold(
+        message: playState.message,
+        onRetry: () =>
+            ref.read(quizPlayNotifierProvider.notifier).start(widget.quizId),
+      );
+    }
 
-    if (playState.isComplete) {
+    // Still loading (initial state before start() resolves).
+    if (playState is QuizPlayLoading) return const _LoadingScaffold();
+
+    final active = playState as QuizPlayActive;
+
+    if (active.isComplete) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.replace(
           AppRouter.quizResult.replaceFirst(':id', widget.quizId),
@@ -55,67 +106,78 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
       return const _LoadingScaffold();
     }
 
-    final question = playState.quiz.questions[playState.currentIndex];
-    final total = playState.quiz.questions.length;
-    final currentQ = playState.currentIndex + 1;
+    final question = active.quiz.questions[active.currentIndex];
+    final total = active.quiz.questions.length;
+    final currentQ = active.currentIndex + 1;
+    final timerState = _timerStateFor(active.timeLeft);
 
-    final timerState = _timerStateFor(playState.timeLeft);
-
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _TopStrip(
-              title: playState.quiz.title,
-              current: currentQ,
-              total: total,
-            ),
-            // gap swing: tight between strip and progress
-            _ProgressSegments(current: currentQ, total: total),
-            // gap swing: wide between progress and timer slab
-            _TimerSlab(
-              secondsLeft: playState.timeLeft,
-              totalSeconds: AppConstants.defaultQuestionTimeSeconds,
-              timerState: timerState,
-              currentQ: currentQ,
-            ),
-            // gap swing: tight between timer and question
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Giant question number nudged off-grid (signature move 1)
-                    _QuestionNumber(
-                      current: currentQ,
-                      total: total,
-                    ),
-                    // gap swing: tight
-                    const SizedBox(height: AppColors.gapTight),
-                    _QuestionText(question: question),
-                    // gap swing: wide before options
-                    const SizedBox(height: AppColors.nudge * 2),
-                    // Crop tick hairline (signature move 5)
-                    _OptionsDivider(),
-                    // gap swing: tight
-                    const SizedBox(height: AppColors.nudge),
-                    ...question.options.asMap().entries.map((entry) {
-                      return _OptionButton(
-                        index: entry.key,
-                        text: entry.value,
-                        onTap: () => ref
-                            .read(quizPlayNotifierProvider.notifier)
-                            .answer(entry.key),
-                      );
-                    }),
-                  ],
+    return PopScope(
+      // Intercept back navigation while a quiz is in progress.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final confirmed = await _confirmExit();
+        if (confirmed && context.mounted) {
+          ref.read(quizPlayNotifierProvider.notifier).reset();
+          context.go(AppRouter.home);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.paper,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _TopStrip(
+                title: active.quiz.title,
+                current: currentQ,
+                total: total,
+              ),
+              // gap swing: tight between strip and progress
+              _ProgressSegments(current: currentQ, total: total),
+              // gap swing: wide between progress and timer slab
+              _TimerSlab(
+                secondsLeft: active.timeLeft,
+                totalSeconds: AppConstants.defaultQuestionTimeSeconds,
+                timerState: timerState,
+                currentQ: currentQ,
+              ),
+              // gap swing: tight between timer and question
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Giant question number nudged off-grid (signature move 1)
+                      _QuestionNumber(
+                        current: currentQ,
+                        total: total,
+                      ),
+                      // gap swing: tight
+                      const SizedBox(height: AppColors.gapTight),
+                      _QuestionText(question: question),
+                      // gap swing: wide before options
+                      const SizedBox(height: AppColors.nudge * 2),
+                      // Crop tick hairline (signature move 5)
+                      _OptionsDivider(),
+                      // gap swing: tight
+                      const SizedBox(height: AppColors.nudge),
+                      ...question.options.asMap().entries.map((entry) {
+                        return _OptionButton(
+                          index: entry.key,
+                          text: entry.value,
+                          onTap: () => ref
+                              .read(quizPlayNotifierProvider.notifier)
+                              .answer(entry.key),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -592,6 +654,73 @@ class _LoadingScaffold extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Error scaffold ─────────────────────────────────────────────────────────
+
+class _ErrorScaffold extends StatelessWidget {
+  const _ErrorScaffold({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                color: AppColors.alarm,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ERROR',
+                      style: GoogleFonts.spaceMono(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2.0,
+                        color: AppColors.paper,
+                      ),
+                    ),
+                    const SizedBox(height: AppColors.gapTight),
+                    Text(
+                      message,
+                      style: GoogleFonts.instrumentSans(
+                        fontSize: AppColors.bodySize,
+                        color: AppColors.paper,
+                        height: AppColors.bodyLeading,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  FilledButton(
+                    onPressed: onRetry,
+                    child: const Text('RETRY'),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton(
+                    onPressed: () => context.go(AppRouter.home),
+                    child: const Text('HOME'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
