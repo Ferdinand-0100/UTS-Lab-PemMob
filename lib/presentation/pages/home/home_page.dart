@@ -505,7 +505,7 @@ class _QuizCardState extends State<_QuizCard> {
   bool _hovered = false;
 
   void _navigate() {
-    context.push(AppRouter.quizPlay.replaceFirst(':id', widget.quiz.id));
+    context.push(AppRouter.quizPlayPath(widget.quiz.id));
   }
 
   @override

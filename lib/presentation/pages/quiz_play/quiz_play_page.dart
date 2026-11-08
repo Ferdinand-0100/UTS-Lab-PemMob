@@ -99,9 +99,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     if (active.isComplete) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.replace(
-          AppRouter.quizResult.replaceFirst(':id', widget.quizId),
-        );
+        context.replace(AppRouter.quizResultPath(widget.quizId));
       });
       return const _LoadingScaffold();
     }

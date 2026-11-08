@@ -68,7 +68,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
   HomeNotifier(this._getQuizzes, this._repository) : super(const HomeState());
 
   final GetQuizzes _getQuizzes;
-  final QuizRepositoryImpl _repository;
+  final QuizRepository _repository;
 
   Future<void> load() async {
     state = state.copyWith(loading: true, errorMessage: null);
@@ -96,7 +96,7 @@ final homeNotifierProvider =
     StateNotifierProvider<HomeNotifier, HomeState>((ref) {
   return HomeNotifier(
     ref.read(getQuizzesProvider),
-    ref.read(quizRepositoryProvider) as QuizRepositoryImpl,
+    ref.read(quizRepositoryProvider),
   );
 });
 
