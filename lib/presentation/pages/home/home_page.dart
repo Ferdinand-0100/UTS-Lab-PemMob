@@ -125,6 +125,7 @@ class _MonoNavStrip extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
+          // Brand — fixed, never shrinks
           Text(
             'QUIZ MASTER',
             style: GoogleFonts.spaceMono(
@@ -134,89 +135,104 @@ class _MonoNavStrip extends ConsumerWidget {
               color: AppColors.ink,
             ),
           ),
-          const Spacer(),
-          // User label
-          if (displayName.isNotEmpty) ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
+          const SizedBox(width: 8),
+          // Right-side actions — allowed to shrink on narrow screens
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  displayName.toUpperCase(),
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: AppColors.ink,
-                  ),
-                ),
-                if (isAdmin)
-                  Text(
-                    'ADMIN',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 8,
-                      letterSpacing: 1.5,
-                      color: AppColors.grid,
+                // User name + role badge
+                if (displayName.isNotEmpty) ...[
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayName.toUpperCase(),
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        if (isAdmin)
+                          Text(
+                            'ADMIN',
+                            style: GoogleFonts.spaceMono(
+                              fontSize: 8,
+                              letterSpacing: 1.5,
+                              color: AppColors.grid,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                ],
+                // Friends button
+                Semantics(
+                  label: 'Friends',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () => context.push(AppRouter.friends),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.bubblegum,
+                        border: Border.all(
+                          color: AppColors.ink,
+                          width: AppColors.borderRule,
+                        ),
+                      ),
+                      child: Text(
+                        'FRIENDS',
+                        style: GoogleFonts.spaceMono(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Sign-out button
+                Semantics(
+                  label: 'Sign out',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () async {
+                      await ref
+                          .read(authNotifierProvider.notifier)
+                          .signOut();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: AppColors.ink,
+                          width: AppColors.borderRule,
+                        ),
+                      ),
+                      child: Text(
+                        'SIGN OUT',
+                        style: GoogleFonts.spaceMono(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
-            ),
-            const SizedBox(width: 12),
-          ],
-          // Friends button
-          Semantics(
-            label: 'Friends',
-            button: true,
-            child: GestureDetector(
-              onTap: () => context.push(AppRouter.friends),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.bubblegum,
-                  border: Border.all(
-                    color: AppColors.ink,
-                    width: AppColors.borderRule,
-                  ),
-                ),
-                child: Text(
-                  'FRIENDS',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppColors.gapTight),
-          // Sign-out button
-          Semantics(
-            label: 'Sign out',
-            button: true,
-            child: GestureDetector(
-              onTap: () async {
-                await ref.read(authNotifierProvider.notifier).signOut();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.ink,
-                    width: AppColors.borderRule,
-                  ),
-                ),
-                child: Text(
-                  'SIGN OUT',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
             ),
           ),
         ],
