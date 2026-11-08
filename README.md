@@ -15,4 +15,7 @@
 
 **Dokumentasi**
 
+Fonts used:
+https://fonts.google.com/share?selection.family=Bricolage+Grotesque:opsz,wght@12..96,200..800|Instrument+Sans:ital,wght@0,400..700;1,400..700|Montserrat:ital,wght@0,100..900;1,100..900|Space+Mono:ital,wght@0,400;0,700;1,400;1,700
+
 Screenshot dan Link Prototype: https://drive.google.com/drive/folders/1ngZ1ILzKev_vRC7mL5yz11pKjOpds2jW?usp=sharing
