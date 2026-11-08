@@ -34,16 +34,7 @@ class QuizRepositoryImpl implements QuizRepository {
     if (cached == null) {
       return const FailureResult(UnexpectedFailure());
     }
-    // Return summary-like entities (questions excluded) for the list.
-    final summaries = cached
-        .map((q) => Quiz(
-              id: q.id,
-              title: q.title,
-              description: q.description,
-              questions: const [],
-            ))
-        .toList(growable: false);
-    return Success(summaries);
+    return Success(cached);
   }
 
   @override
