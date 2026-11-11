@@ -1,14 +1,16 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/core/utils/result.dart';
+import 'package:quiz_app/data/repositories/quiz_remote_repository_impl.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_create_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
+import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
 /// Admin-only page for creating a new quiz or editing an existing one.
 ///
@@ -20,6 +22,9 @@ import 'package:quiz_app/presentation/routes/app_router.dart';
 ///  (3) Tilted stamp on section labels.
 ///  (5) Hairline crop ticks between sections.
 ///  (6) Gap swing throughout.
+///
+/// Uses [AppTopStrip], [AppSectionLabel], [AppMonoLabel], [AppErrorBanner]
+/// from the shared widget library.
 class QuizCreatePage extends ConsumerStatefulWidget {
   const QuizCreatePage({super.key, this.editQuizId});
 
@@ -41,21 +46,50 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
   // Each question is represented as a map of controllers.
   final List<_QuestionControllers> _questions = [];
 
+  bool _prefilled = false;
+
   bool get _isEditing => widget.editQuizId != null;
 
   @override
   void initState() {
     super.initState();
     if (_isEditing) {
-      _prefillFromCache();
+      _prefillFromSource();
     } else {
       _addQuestion(); // start with one empty question for create mode
     }
   }
 
-  /// Pre-populates the form from the in-memory quiz cache when editing.
-  void _prefillFromCache() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  /// Pre-populates the form by fetching fresh data from the repository.
+  ///
+  /// Calls [ensureLoaded] first so we always read up-to-date data —
+  /// this avoids the stale-cache race where a previous edit's
+  /// delete+insert is still in-flight when the cache is re-read.
+  void _prefillFromSource() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_prefilled || !mounted) return;
+      _prefilled = true;
+
+      // Always ensure the cache is fresh before reading — this guarantees
+      // we never read a mid-update snapshot from a previous save's
+      // delete+insert race.
+      final repo = ref.read(quizRepositoryProvider);
+      if (repo is QuizRemoteRepositoryImpl) repo.invalidate();
+      try {
+        await repo.ensureLoaded();
+      } catch (_) {
+        // Network error — fall back to a blank question.
+        if (mounted) {
+          setState(() {
+            _questions.clear();
+            _addQuestion();
+          });
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
       final result = ref.read(getQuizQuestionsProvider).call(widget.editQuizId!);
       switch (result) {
         case Success(:final value):
@@ -77,8 +111,11 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             if (_questions.isEmpty) _addQuestion();
           });
         case FailureResult():
-          // Quiz not in cache — just start with an empty form.
-          _addQuestion();
+          // Quiz not found even after a fresh load — start with a blank form.
+          setState(() {
+            _questions.clear();
+            _addQuestion();
+          });
       }
     });
   }
@@ -145,7 +182,10 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
 
     final state = ref.read(quizCreateNotifierProvider);
     if (state.errorMessage == null && mounted) {
-      context.go(AppRouter.home);
+      // Reload home state before navigating so the quiz card reflects the
+      // updated question count immediately, without a stale-cache flash.
+      await ref.read(homeNotifierProvider.notifier).load();
+      if (mounted) context.go(AppRouter.home);
     }
   }
 
@@ -156,7 +196,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     // Guard — non-admins should never reach this page, but just in case.
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: c.paper,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: Center(
           child: Text(
             'ACCESS DENIED.',
@@ -169,12 +209,16 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     final createState = ref.watch(quizCreateNotifierProvider);
 
     return Scaffold(
-      backgroundColor: c.paper,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _TopStrip(onBack: () => context.go(AppRouter.home)),
+            // ── Shared top strip ──────────────────────────────────────
+            AppTopStrip(
+              onBack: () => context.go(AppRouter.home),
+              title: 'ADMIN',
+            ),
             Expanded(
               child: Form(
                 key: _formKey,
@@ -189,9 +233,11 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                             // Headline (signature move 1)
                             _Headline(isEditing: _isEditing),
                             const SizedBox(height: AppColors.nudge * 2),
-                            _SectionLabel(label: 'QUIZ INFO'),
+                            // ── Shared AppSectionLabel ────────────────
+                            const AppSectionLabel(label: 'QUIZ INFO'),
                             const SizedBox(height: AppColors.nudge),
-                            _FieldLabel('TITLE'),
+                            // ── Shared AppMonoLabel ───────────────────
+                            const AppMonoLabel('TITLE'),
                             const SizedBox(height: AppColors.gapTight),
                             _CreateField(
                               controller: _titleCtrl,
@@ -201,7 +247,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                                   : null,
                             ),
                             const SizedBox(height: AppColors.nudge),
-                            _FieldLabel('DESCRIPTION'),
+                            const AppMonoLabel('DESCRIPTION'),
                             const SizedBox(height: AppColors.gapTight),
                             _CreateField(
                               controller: _descCtrl,
@@ -212,7 +258,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                                   : null,
                             ),
                             const SizedBox(height: AppColors.nudge),
-                            _FieldLabel('PASSING SCORE (%)'),
+                            const AppMonoLabel('PASSING SCORE (%)'),
                             const SizedBox(height: AppColors.gapTight),
                             _CreateField(
                               controller: _passingScoreCtrl,
@@ -227,7 +273,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                               },
                             ),
                             const SizedBox(height: AppColors.nudge * 2),
-                            _SectionLabel(label: 'QUESTIONS'),
+                            const AppSectionLabel(label: 'QUESTIONS'),
                           ],
                         ),
                       ),
@@ -263,28 +309,18 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (createState.errorMessage != null) ...[
-                              Container(
-                                color: AppColors.alarm,
-                                padding: const EdgeInsets.all(12),
-                                child: Text(
-                                  createState.errorMessage!,
-                                  style: GoogleFonts.spaceMono(
-                                    fontSize: 11,
-                                    color: c.paper,
-                                  ),
-                                ),
-                              ),
+                              AppErrorBanner(createState.errorMessage!),
                               const SizedBox(height: AppColors.nudge),
                             ],
                             FilledButton(
                               onPressed: createState.loading ? null : _submit,
                               child: createState.loading
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       width: 18,
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: AppColors.borderFrame,
-                                        color: c.ink,
+                                        color: Theme.of(context).colorScheme.onSurface,
                                       ),
                                     )
                                   : Text(_isEditing ? 'SAVE CHANGES' : 'PUBLISH QUIZ'),
@@ -299,50 +335,6 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── Top strip ──────────────────────────────────────────────────────────────
-
-class _TopStrip extends StatelessWidget {
-  const _TopStrip({required this.onBack});
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onBack,
-            child: Text(
-              '<- HOME',
-              style: GoogleFonts.spaceMono(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                color: c.ink,
-              ),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'ADMIN',
-            style: GoogleFonts.spaceMono(
-              fontSize: 10,
-              letterSpacing: 2.0,
-              color: c.grid,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -370,7 +362,7 @@ class _Headline extends StatelessWidget {
             fontWeight: FontWeight.w800,
             height: AppColors.displayLeading,
             letterSpacing: -2.0,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         // Accent-serif italic (signature move 1)
@@ -381,75 +373,10 @@ class _Headline extends StatelessWidget {
             fontStyle: FontStyle.italic,
             height: AppColors.displayLeading,
             letterSpacing: -1.5,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Section label (signature move 3 + 5) ──────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Tilted stamp (signature move 3)
-        ExcludeSemantics(
-          child: Transform.rotate(
-            angle: AppColors.angleStamp,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.acid,
-                border: Border.all(
-                    color: c.ink, width: AppColors.borderRule),
-              ),
-              child: Text(
-                label,
-                style: GoogleFonts.spaceMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.0,
-                  color: c.ink,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Hairline crop tick (signature move 5)
-        Expanded(
-          child: Container(
-            height: AppColors.borderRule,
-            color: c.grid,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Field label ────────────────────────────────────────────────────────────
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.spaceMono(
-        fontSize: 9,
-        letterSpacing: 2.0,
-        color: c.grid,
-      ),
     );
   }
 }
@@ -479,36 +406,38 @@ class _CreateField extends StatelessWidget {
       keyboardType: keyboardType,
       style: GoogleFonts.instrumentSans(
         fontSize: AppColors.bodySize,
-        color: c.ink,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.instrumentSans(
           fontSize: AppColors.bodySize,
-          color: c.grid,
+          color: Theme.of(context).colorScheme.outlineVariant,
         ),
         filled: true,
-        fillColor: c.paper,
+        fillColor: Theme.of(context).colorScheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
         ),
-        enabledBorder: const OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: c.ink, width: AppColors.borderRule),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: AppColors.borderRule),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: c.ink, width: AppColors.borderFrame),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: AppColors.borderFrame),
         ),
-        errorBorder: const OutlineInputBorder(
+        errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
               BorderSide(color: AppColors.alarm, width: AppColors.borderRule),
         ),
-        focusedErrorBorder: const OutlineInputBorder(
+        focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide:
               BorderSide(color: AppColors.alarm, width: AppColors.borderFrame),
@@ -543,7 +472,7 @@ class _QuestionCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: c.ink, width: AppColors.borderRule),
+        border: Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -558,7 +487,7 @@ class _QuestionCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
-                  color: c.grid,
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
               const Spacer(),
@@ -577,7 +506,7 @@ class _QuestionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppColors.nudge),
-          _FieldLabel('QUESTION TEXT'),
+          AppMonoLabel('QUESTION TEXT'),
           const SizedBox(height: AppColors.gapTight),
           _CreateField(
             controller: controllers.textCtrl,
@@ -587,7 +516,7 @@ class _QuestionCard extends StatelessWidget {
                 (v == null || v.trim().isEmpty) ? 'Required' : null,
           ),
           const SizedBox(height: AppColors.nudge),
-          _FieldLabel('OPTIONS  (tap circle to mark correct answer)'),
+          AppMonoLabel('OPTIONS  (tap circle to mark correct answer)'),
           const SizedBox(height: AppColors.gapTight),
           ...List.generate(4, (i) {
             final letter = String.fromCharCode(65 + i);
@@ -605,15 +534,15 @@ class _QuestionCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color:
-                            isCorrect ? AppColors.acid : c.paper,
+                            isCorrect ? AppColors.acid : Theme.of(context).colorScheme.surface,
                         border: Border.all(
-                          color: c.ink,
+                          color: Theme.of(context).colorScheme.onSurface,
                           width: AppColors.borderRule,
                         ),
                       ),
                       child: isCorrect
-                          ? const Icon(Icons.check,
-                              size: 14, color: c.ink)
+                          ? Icon(Icons.check,
+                              size: 14, color: Theme.of(context).colorScheme.onSurface)
                           : null,
                     ),
                   ),
@@ -623,7 +552,7 @@ class _QuestionCard extends StatelessWidget {
                     style: GoogleFonts.spaceMono(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: c.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -641,7 +570,7 @@ class _QuestionCard extends StatelessWidget {
             );
           }),
           const SizedBox(height: AppColors.gapTight),
-          _FieldLabel('EXPLANATION (optional)'),
+          AppMonoLabel('EXPLANATION (optional)'),
           const SizedBox(height: AppColors.gapTight),
           _CreateField(
             controller: controllers.explanationCtrl,
