@@ -1,5 +1,5 @@
 name: quiz_app
-description: "A Flutter-based mobile quiz application built with clean architecture."
+description: "A Flutter-based mobile quiz application."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -15,15 +15,18 @@ dependencies:
   go_router: ^14.6.2
   google_fonts: ^6.2.1
   supabase_flutter: ^2.8.4
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/data/
     - assets/images/
+    - assets/sounds/

@@ -15,6 +15,8 @@ class FriendEntry {
     required this.displayName,
     required this.status,
     required this.isSentByMe,
+    this.passedQuizCount = 0,
+    this.totalQuizCount = 0,
   });
 
   final String friendshipId;
@@ -22,6 +24,12 @@ class FriendEntry {
   final String displayName;
   final FriendshipStatus status;
   final bool isSentByMe;
+
+  /// Number of distinct quizzes this friend has passed at least once.
+  final int passedQuizCount;
+
+  /// Total distinct quizzes this friend has attempted.
+  final int totalQuizCount;
 }
 
 class FriendScore {
@@ -84,11 +92,37 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
 
     state = state.copyWith(loading: true, errorMessage: null);
     try {
-      // Fetch friendships where I am either side.
+      // ── 1. Fetch all friendships involving me ──────────────────────
+      // Use a simple select without FK joins to avoid alias mismatches.
       final rows = await _client
           .from('friendships')
-          .select('id, user_id, friend_id, status, profiles!friendships_friend_id_fkey(display_name), sender:profiles!friendships_user_id_fkey(display_name)')
+          .select('id, user_id, friend_id, status')
           .or('user_id.eq.${user.id},friend_id.eq.${user.id}');
+
+      if (rows.isEmpty) {
+        state = state.copyWith(friends: [], scores: [], loading: false);
+        return;
+      }
+
+      // Collect all "other" user IDs so we can batch-fetch their names.
+      final otherIds = <String>{};
+      for (final row in rows) {
+        final isSentByMe = row['user_id'] as String == user.id;
+        otherIds.add(isSentByMe
+            ? row['friend_id'] as String
+            : row['user_id'] as String);
+      }
+
+      // ── 2. Batch-fetch display names for all other users ───────────
+      final profileRows = await _client
+          .from('profiles')
+          .select('id, display_name')
+          .inFilter('id', otherIds.toList());
+
+      final nameById = <String, String>{
+        for (final p in profileRows)
+          p['id'] as String: p['display_name'] as String? ?? 'Unknown',
+      };
 
       final friends = <FriendEntry>[];
       for (final row in rows) {
@@ -96,17 +130,12 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
         final otherId = isSentByMe
             ? row['friend_id'] as String
             : row['user_id'] as String;
-        final otherProfile = isSentByMe
-            ? row['profiles'] as Map<String, dynamic>?
-            : row['sender'] as Map<String, dynamic>?;
-        final displayName =
-            otherProfile?['display_name'] as String? ?? 'Unknown';
         final statusStr = row['status'] as String;
 
         friends.add(FriendEntry(
           friendshipId: row['id'] as String,
           userId: otherId,
-          displayName: displayName,
+          displayName: nameById[otherId] ?? 'Unknown',
           status: statusStr == 'accepted'
               ? FriendshipStatus.accepted
               : FriendshipStatus.pending,
@@ -114,40 +143,61 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
         ));
       }
 
-      // Fetch recent scores for accepted friends.
-      final acceptedIds = friends
+      // ── 3. Fetch scores for accepted friends ───────────────────────
+      final acceptedFriendIds = friends
           .where((f) => f.status == FriendshipStatus.accepted)
           .map((f) => f.userId)
           .toList();
 
-      final scores = <FriendScore>[];
-      if (acceptedIds.isNotEmpty) {
+      final Map<String, int> passedMap = {};
+      final Map<String, int> totalMap  = {};
+
+      if (acceptedFriendIds.isNotEmpty) {
+        // Fetch scores + quiz passing_score in one join.
         final scoreRows = await _client
             .from('scores')
-            .select('percent, correct, total, created_at, quiz_id, profiles(display_name), quizzes(title, passing_score)')
-            .inFilter('user_id', acceptedIds)
-            .order('created_at', ascending: false)
-            .limit(50);
+            .select('user_id, quiz_id, percent, quizzes(passing_score)')
+            .inFilter('user_id', acceptedFriendIds);
+
+        final Set<String> seenAttempts = {};
+        final Set<String> seenPassed   = {};
 
         for (final row in scoreRows) {
-          final profile = row['profiles'] as Map<String, dynamic>?;
-          final quiz = row['quizzes'] as Map<String, dynamic>?;
+          final userId  = row['user_id'] as String;
+          final quizId  = row['quiz_id'] as String;
           final percent = (row['percent'] as num).toDouble();
-          final passingScore =
-              (quiz?['passing_score'] as num?)?.toDouble() ?? 60.0;
-          scores.add(FriendScore(
-            displayName: profile?['display_name'] as String? ?? 'Unknown',
-            quizTitle: quiz?['title'] as String? ?? 'Unknown Quiz',
-            percent: percent,
-            passed: percent >= passingScore,
-            createdAt: DateTime.parse(row['created_at'] as String),
-          ));
+          final quiz    = row['quizzes'] as Map<String, dynamic>?;
+          final passing = (quiz?['passing_score'] as num?)?.toDouble() ?? 60.0;
+          final passed  = percent >= passing;
+
+          final attemptKey = '$userId:$quizId';
+          if (!seenAttempts.contains(attemptKey)) {
+            seenAttempts.add(attemptKey);
+            totalMap[userId] = (totalMap[userId] ?? 0) + 1;
+          }
+          if (passed) {
+            if (!seenPassed.contains(attemptKey)) {
+              seenPassed.add(attemptKey);
+              passedMap[userId] = (passedMap[userId] ?? 0) + 1;
+            }
+          }
         }
       }
 
+      // ── 4. Enrich friends with pass counts ─────────────────────────
+      final enrichedFriends = friends.map((f) => FriendEntry(
+            friendshipId:    f.friendshipId,
+            userId:          f.userId,
+            displayName:     f.displayName,
+            status:          f.status,
+            isSentByMe:      f.isSentByMe,
+            passedQuizCount: passedMap[f.userId] ?? 0,
+            totalQuizCount:  totalMap[f.userId]  ?? 0,
+          )).toList();
+
       state = state.copyWith(
-        friends: friends,
-        scores: scores,
+        friends: enrichedFriends,
+        scores:  const [],   // feed removed — counts shown per card
         loading: false,
       );
     } catch (e) {
@@ -162,7 +212,6 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
     final user = _ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
-    // Clear any previous error before attempting
     state = state.copyWith(errorMessage: null);
 
     try {
@@ -175,7 +224,8 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
       if (results.isEmpty) {
         state = state.copyWith(
           errorMessage:
-              'No user found with that email. Make sure the email is correct and the user has registered.',
+              'No user found with that email. '
+              'Make sure the email is correct and the user has registered.',
         );
         return;
       }
@@ -187,19 +237,22 @@ class FriendListNotifier extends StateNotifier<FriendListState> {
       }
 
       await _client.from('friendships').insert({
-        'user_id': user.id,
+        'user_id':   user.id,
         'friend_id': targetId,
-        'status': 'pending',
+        'status':    'pending',
       });
 
       await load();
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         state = state.copyWith(
-            errorMessage: 'A friend request with this user already exists.');
+          errorMessage:
+              'A friend request with this user already exists.',
+        );
       } else {
         state = state.copyWith(
-            errorMessage: 'Could not send request: ${e.message}');
+          errorMessage: 'Could not send request: ${e.message}',
+        );
       }
     } catch (_) {
       state = state.copyWith(errorMessage: 'Could not send request.');

@@ -9,24 +9,8 @@ import 'package:quiz_app/presentation/providers/score_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
-/// Quiz result page in Anti-Design style.
-///
-/// Signature moves active on this screen:
-///  (1) Accent-serif italic word inside the pass/fail stamp label.
-///  (2) Circular sticker on score slab corner carrying the raw score.
-///  (3) Tilted mono stamp (PASS / FAIL) at –5 deg.
-///  (4) Decorative echo of "RESULT" clipped off right edge.
-///  (5) Hairline crop ticks above the breakdown list.
-///  (6) Neighbouring slabs of unequal width, height, indent.
-///  (7) Gap swing — alternating tight and wide gaps throughout.
-///
-/// Breakdown item surfaces:
-///   correct    -> acid slab, ink text
-///   wrong      -> alarm slab, paper text
-///   unanswered -> bubblegum slab, ink text
 class QuizResultPage extends ConsumerStatefulWidget {
   const QuizResultPage({required this.quizId, super.key});
-
   final String quizId;
 
   @override
@@ -40,14 +24,15 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
   Widget build(BuildContext context) {
     final playState = ref.watch(quizPlayNotifierProvider);
 
-    // Guard: if the state is not active (user navigated here directly or
-    // state was reset), send them back home.
     if (playState is! QuizPlayActive) {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => context.go(AppRouter.home));
       return Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        body: const AppLoadingView(),
+        backgroundColor: AppColors.shell,
+        body: Padding(
+          padding: const EdgeInsets.all(12),
+          child: const AppLoadingView(),
+        ),
       );
     }
 
@@ -57,7 +42,6 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
         .read(calculateQuizScoreProvider)
         .call(questions: quiz.questions, answers: answers);
 
-    // Save the score once, after the first successful build.
     if (!_scoreSaved) {
       _scoreSaved = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,82 +54,91 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
       });
     }
 
-    final s = AppSurface.of(context);
     final passed = scoreResult.passed;
-    final slabColor = passed ? AppColors.acid : AppColors.alarm;
-    // Acid slab = always light (use ink). Alarm slab = always has paper text.
-    final slabTextColor = passed ? AppColors.ink : AppColors.paper;
     final percentStr = '${scoreResult.percent.toStringAsFixed(0)}%';
-
     final unansweredCount =
         quiz.questions.where((q) => !answers.containsKey(q.id)).length;
     final wrongCount =
         scoreResult.totalCount - scoreResult.correctCount - unansweredCount;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: AppColors.shell,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Shared top strip ──────────────────────────────────────
-            AppTopStrip(
-              title: quiz.title.toUpperCase(),
-              trailing: Text(
-                'RESULTS',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 11,
-                  letterSpacing: 2.0,
-                  color: s.guide,
-                ),
-              ),
-            ),
-            // gap swing: tight between strip and score slab
-            _ScoreSlab(
-              slabColor: slabColor,
-              slabTextColor: slabTextColor,
-              percentStr: percentStr,
+            // ── Shell top strip ──────────────────────────────────────
+            _ResultTopStrip(title: quiz.title),
+
+            // ── Score panel on shell ─────────────────────────────────
+            _ScorePanel(
               passed: passed,
-              correctCount: scoreResult.correctCount,
-              totalCount: scoreResult.totalCount,
-            ),
-            // gap swing: tight between score slab and score bar
-            _ScoreBar(
+              percentStr: percentStr,
               correct: scoreResult.correctCount,
+              total: scoreResult.totalCount,
               wrong: wrongCount,
               unanswered: unansweredCount,
-              total: scoreResult.totalCount,
+              rawPercent: scoreResult.percent,
             ),
-            // gap swing: wide before section label
-            const _BreakdownHeader(),
+
+            // ── CRT breakdown screen ─────────────────────────────────
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                itemCount: quiz.questions.length,
-                itemBuilder: (context, index) {
-                  final q = quiz.questions[index];
-                  final selected = answers[q.id];
-                  final isCorrect = selected == q.correctIndex;
-                  final unanswered = selected == null;
-                  return _BreakdownItem(
-                    index: index,
-                    question: q,
-                    selected: selected,
-                    isCorrect: isCorrect,
-                    unanswered: unanswered,
-                  );
-                },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                child: CrtScreen(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header bar
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                                color: AppColors.phosphorDim,
+                                width: AppColors.borderRule),
+                          ),
+                        ),
+                        child: PhosphorText(
+                          'BREAKDOWN',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                          itemCount: quiz.questions.length,
+                          itemBuilder: (context, i) {
+                            final q = quiz.questions[i];
+                            final selected = answers[q.id];
+                            return _BreakdownItem(
+                              index: i,
+                              question: q,
+                              selected: selected,
+                              isCorrect: selected == q.correctIndex,
+                              unanswered: selected == null,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: FilledButton(
-                onPressed: () {
-                  ref.read(quizPlayNotifierProvider.notifier).reset();
-                  context.go(AppRouter.home);
-                },
-                child: const Text('BACK TO HOME'),
-              ),
+
+            // ── Bottom action strip ──────────────────────────────────
+            _BottomActionStrip(
+      onHome: () {
+                ref.read(quizPlayNotifierProvider.notifier).reset();
+                context.crtNavigate(
+                  label: 'RETURNING HOME...',
+                  onDone: () => context.go(AppRouter.home),
+                );
+              },
             ),
           ],
         ),
@@ -154,345 +147,37 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
   }
 }
 
-// ── Score slab ─────────────────────────────────────────────────────────────
+// ── Result top strip ───────────────────────────────────────────────
 
-class _ScoreSlab extends StatelessWidget {
-  const _ScoreSlab({
-    required this.slabColor,
-    required this.slabTextColor,
-    required this.percentStr,
-    required this.passed,
-    required this.correctCount,
-    required this.totalCount,
-  });
-
-  final Color slabColor;
-  final Color slabTextColor;
-  final String percentStr;
-  final bool passed;
-  final int correctCount;
-  final int totalCount;
+class _ResultTopStrip extends StatelessWidget {
+  const _ResultTopStrip({required this.title});
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    final screenW = MediaQuery.sizeOf(context).width;
-    final displaySize =
-        (screenW / 4.5).clamp(AppColors.displayMin, AppColors.displayMax);
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: double.infinity,
-          color: slabColor,
-          // gap swing: wide top padding, tight bottom
-          padding: const EdgeInsets.fromLTRB(16, 28, 100, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tilted pass/fail stamp (signature move 3)
-              _PassFailStamp(passed: passed, textColor: slabTextColor),
-              // gap swing: tight
-              const SizedBox(height: AppColors.gapTight),
-              Text(
-                percentStr,
-                style: GoogleFonts.bricolageGrotesque(
-                  fontSize: displaySize,
-                  fontWeight: FontWeight.w800,
-                  height: AppColors.displayLeading,
-                  letterSpacing: -3.0,
-                  color: slabTextColor,
-                ),
-              ),
-              // gap swing: wide
-              const SizedBox(height: 12),
-              Container(
-                height: AppColors.borderRule,
-                color: slabTextColor.withValues(alpha: 0.4),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '$correctCount CORRECT  ·  $totalCount TOTAL',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                  color: slabTextColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Sticker on right edge with correct count (signature move 2)
-        Positioned(
-          right: 12,
-          top: 16,
-          child: ExcludeSemantics(
-            child: Container(
-              width: AppColors.stickerSize,
-              height: AppColors.stickerSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: s.surface,
-                border: Border.all(
-                  color: slabTextColor,
-                  width: AppColors.borderFrame,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '$correctCount',
-                    style: GoogleFonts.bricolageGrotesque(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      height: 1.0,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    'RIGHT',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Pass/fail stamp ────────────────────────────────────────────────────────
-
-/// Signature move 3: tilted at stamp angle.
-/// Signature move 1: accent-serif italic on "Passed" / "Failed".
-class _PassFailStamp extends StatelessWidget {
-  const _PassFailStamp({required this.passed, required this.textColor});
-  final bool passed;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: AppColors.angleStamp,
-      alignment: Alignment.topLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          border:
-              Border.all(color: textColor, width: AppColors.borderRule),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              passed ? '✓ ' : '✗ ',
-              style: GoogleFonts.spaceMono(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.0,
-                color: textColor,
-              ),
-            ),
-            // Accent-serif italic (signature move 1)
-            Text(
-              passed ? 'Passed' : 'Failed',
-              style: GoogleFonts.instrumentSerif(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: textColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Score bar ──────────────────────────────────────────────────────────────
-
-class _ScoreBar extends StatelessWidget {
-  const _ScoreBar({
-    required this.correct,
-    required this.wrong,
-    required this.unanswered,
-    required this.total,
-  });
-
-  final int correct;
-  final int wrong;
-  final int unanswered;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    if (total == 0) return const SizedBox.shrink();
-
-    final s = AppSurface.of(context);
-    return Semantics(
-      label: '$correct correct, $wrong wrong, $unanswered unanswered '
-          'out of $total questions.',
-      child: Container(
-        color: s.surface,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 20,
-              child: Row(
-                children: [
-                  if (correct > 0)
-                    _ScoreSegment(
-                      flex: correct,
-                      color: AppColors.acid,
-                      isLast: wrong == 0 && unanswered == 0,
-                    ),
-                  if (wrong > 0)
-                    _ScoreSegment(
-                      flex: wrong,
-                      color: AppColors.alarm,
-                      isLast: unanswered == 0,
-                    ),
-                  if (unanswered > 0)
-                    _ScoreSegment(
-                      flex: unanswered,
-                      color: AppColors.bubblegum,
-                      isLast: true,
-                    ),
-                ],
-              ),
-            ),
-            // gap swing: tight
-            const SizedBox(height: AppColors.gapTight),
-            Row(
-              children: [
-                if (correct > 0) ...[
-                  _BarLegendItem(
-                    color: AppColors.acid,
-                    label: '$correct CORRECT',
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                if (wrong > 0) ...[
-                  _BarLegendItem(
-                    color: AppColors.alarm,
-                    label: '$wrong WRONG',
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                if (unanswered > 0)
-                  _BarLegendItem(
-                    color: AppColors.bubblegum,
-                    label: '$unanswered SKIPPED',
-                  ),
-              ],
-            ),
-            // gap swing: wide before hairline
-            const SizedBox(height: 16),
-            Container(height: AppColors.borderRule, color: s.onSurface),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ScoreSegment extends StatelessWidget {
-  const _ScoreSegment({
-    required this.flex,
-    required this.color,
-    required this.isLast,
-  });
-
-  final int flex;
-  final Color color;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        margin: EdgeInsets.only(right: isLast ? 0 : 2),
-        color: color,
-      ),
-    );
-  }
-}
-
-class _BarLegendItem extends StatelessWidget {
-  const _BarLegendItem({required this.color, required this.label});
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 10, height: 10, color: color),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: GoogleFonts.spaceMono(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Breakdown header (result-page specific: bottom border + crop tick) ────
-
-class _BreakdownHeader extends StatelessWidget {
-  const _BreakdownHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
     return Container(
-      decoration: BoxDecoration(
-        color: s.surface,
+      decoration: const BoxDecoration(
+        color: AppColors.shellDark,
         border: Border(
-          bottom: BorderSide(color: s.onSurface, width: AppColors.borderRule),
+          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Text(
-            'BREAKDOWN',
-            style: GoogleFonts.spaceMono(
-              fontSize: 9,
-              letterSpacing: 3.0,
-              color: s.guide,
-            ),
+          Expanded(
+            child: ShellText(title.toUpperCase(), fontSize: 8, color: AppColors.shellLight),
           ),
-          const SizedBox(width: 12),
-          // Crop tick ornament (signature move 5)
-          ExcludeSemantics(
-            child: Row(
-              children: [
-                Container(width: 16, height: AppColors.borderRule, color: s.guide),
-                const SizedBox(width: 3),
-                Container(width: 4, height: 4, color: s.guide),
-              ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            color: AppColors.phosphorDim,
+            child: Text(
+              'RESULTS',
+              style: GoogleFonts.silkscreen(
+                fontSize: 7,
+                color: AppColors.crtBgDeep,
+                letterSpacing: 1.5,
+              ),
             ),
           ),
         ],
@@ -501,11 +186,204 @@ class _BreakdownHeader extends StatelessWidget {
   }
 }
 
-// ── Breakdown item ─────────────────────────────────────────────────────────
+// ── Score panel ────────────────────────────────────────────────────
 
-/// Each item alternates width/indent (signature move 6):
-///   even index → full width
-///   odd index  → 92% width, nudged right
+class _ScorePanel extends StatefulWidget {
+  const _ScorePanel({
+    required this.passed,
+    required this.percentStr,
+    required this.correct,
+    required this.total,
+    required this.wrong,
+    required this.unanswered,
+    required this.rawPercent,
+  });
+  final bool passed;
+  final String percentStr;
+  final int correct;
+  final int total;
+  final int wrong;
+  final int unanswered;
+  final double rawPercent;
+
+  @override
+  State<_ScorePanel> createState() => _ScorePanelState();
+}
+
+class _ScorePanelState extends State<_ScorePanel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _counter;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _counter = Tween<double>(begin: 0, end: widget.rawPercent).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+    // Small delay so the screen is visible before counting starts
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final panelColor = widget.passed ? AppColors.btnGreen : AppColors.btnRed;
+    final shadowColor = widget.passed
+        ? const Color(0xFF0A2007)
+        : const Color(0xFF8B1A0A);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.crtBgDeep,
+        border: Border(
+          top: const BorderSide(color: AppColors.outline, width: AppColors.borderRule),
+          bottom: BorderSide(color: panelColor, width: AppColors.borderFrame),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            offset: const Offset(0, AppColors.btnDepth),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pass/fail stamp
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: panelColor, width: AppColors.borderRule),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.passed ? '■ ' : '✕ ',
+                        style: GoogleFonts.silkscreen(fontSize: 9, color: panelColor),
+                      ),
+                      Text(
+                        widget.passed ? 'PASSED' : 'FAILED',
+                        style: GoogleFonts.silkscreen(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: panelColor,
+                          shadows: [
+                            Shadow(color: panelColor.withValues(alpha: 0.5), blurRadius: 6),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Animated percent counter
+                AnimatedBuilder(
+                  animation: _counter,
+                  builder: (_, __) {
+                    return Text(
+                      '${_counter.value.toStringAsFixed(0)}%',
+                      style: GoogleFonts.silkscreen(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: panelColor,
+                        letterSpacing: 2.0,
+                        shadows: [
+                          Shadow(
+                            color: panelColor.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 4),
+                PhosphorText(
+                  '${widget.correct} CORRECT  /  ${widget.total} TOTAL',
+                  fontSize: 8,
+                  dim: true,
+                ),
+              ],
+            ),
+          ),
+          // Score tally column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _TallyRow(label: 'CORRECT', value: widget.correct, color: AppColors.phosphor),
+              const SizedBox(height: 4),
+              _TallyRow(label: 'WRONG', value: widget.wrong, color: AppColors.btnRed),
+              const SizedBox(height: 4),
+              _TallyRow(label: 'SKIPPED', value: widget.unanswered, color: AppColors.btnYellow),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TallyRow extends StatelessWidget {
+  const _TallyRow({required this.label, required this.value, required this.color});
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.silkscreen(
+              fontSize: 7, color: AppColors.phosphorDim, letterSpacing: 1.0),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          width: 28,
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          color: color.withValues(alpha: 0.15),
+          foregroundDecoration: BoxDecoration(
+            border: Border.all(color: color, width: 1),
+          ),
+          child: Center(
+            child: Text(
+              value.toString().padLeft(2, '0'),
+              style: GoogleFonts.silkscreen(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Breakdown item ─────────────────────────────────────────────────
+
 class _BreakdownItem extends StatelessWidget {
   const _BreakdownItem({
     required this.index,
@@ -514,7 +392,6 @@ class _BreakdownItem extends StatelessWidget {
     required this.isCorrect,
     required this.unanswered,
   });
-
   final int index;
   final Question question;
   final int? selected;
@@ -523,114 +400,118 @@ class _BreakdownItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenW = MediaQuery.sizeOf(context).width;
-    final indexStr = (index + 1).toString().padLeft(2, '0');
+    final Color borderColor;
+    final String monoLabel;
 
-    final (bgColor, fgColor, monoLabel) = switch (true) {
-      _ when isCorrect  => (AppColors.acid, c.ink, '✓ CORRECT'),
-      _ when unanswered => (AppColors.bubblegum, c.ink, '— SKIPPED'),
-      _                 => (AppColors.alarm, c.paper, '✗ WRONG'),
-    };
-
-    String answerLine;
-    if (unanswered) {
-      answerLine = 'NOT ANSWERED';
+    if (isCorrect) {
+      borderColor = AppColors.phosphor;
+      monoLabel = '■ CORRECT';
+    } else if (unanswered) {
+      borderColor = AppColors.btnYellow;
+      monoLabel = '— SKIPPED';
     } else {
-      answerLine =
-          'YOU: ${String.fromCharCode(65 + selected!)}. ${question.options[selected!]}';
+      borderColor = AppColors.btnRed;
+      monoLabel = '✕ WRONG';
     }
-    final correctLine =
-        'CORRECT: ${String.fromCharCode(65 + question.correctIndex)}. '
-        '${question.correctAnswer}';
 
-    // Alternating width and indent for stagger rhythm (signature move 6/7)
-    final isNarrow = index.isOdd;
-    final cardWidth =
-        isNarrow ? (screenW - 32) * 0.92 : double.infinity;
-    final leftPad = isNarrow ? AppColors.nudge : 0.0;
+    final answerLine = unanswered
+        ? 'NOT ANSWERED'
+        : 'YOU: ${String.fromCharCode(65 + selected!)}.  ${question.options[selected!]}';
+    final correctLine =
+        'ANS: ${String.fromCharCode(65 + question.correctIndex)}.  ${question.correctAnswer}';
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: index.isEven ? AppColors.nudge : AppColors.gapTight,
-        left: leftPad,
-      ),
-      child: SizedBox(
-        width: cardWidth,
-        child: Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface,
-              width: AppColors.borderRule,
-            ),
-          ),
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    indexStr,
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 10,
-                      color: fgColor.withValues(alpha: 0.5),
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    monoLabel,
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                      color: fgColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppColors.gapTight),
-              Text(
-                question.text,
-                style: GoogleFonts.instrumentSans(
-                  fontSize: AppColors.bodySize,
-                  height: AppColors.bodyLeading,
-                  fontWeight: FontWeight.w600,
-                  color: fgColor,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                height: AppColors.borderRule,
-                color: fgColor.withValues(alpha: 0.3),
-              ),
-              const SizedBox(height: AppColors.gapTight),
-              Text(
-                answerLine,
-                style: GoogleFonts.spaceMono(
-                  fontSize: AppColors.labelSize,
-                  letterSpacing: 0.3,
-                  color: fgColor.withValues(alpha: 0.8),
-                ),
-              ),
-              if (!isCorrect) ...[
-                const SizedBox(height: 4),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.crtBgDeep,
+          border: Border.all(color: borderColor, width: AppColors.borderRule),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Text(
-                  correctLine,
-                  style: GoogleFonts.spaceMono(
-                    fontSize: AppColors.labelSize,
-                    letterSpacing: 0.3,
+                  'Q${(index + 1).toString().padLeft(2, '0')}',
+                  style: GoogleFonts.silkscreen(
+                      fontSize: 8,
+                      color: borderColor.withValues(alpha: 0.6),
+                      letterSpacing: 1.0),
+                ),
+                const Spacer(),
+                Text(
+                  monoLabel,
+                  style: GoogleFonts.silkscreen(
+                    fontSize: 8,
                     fontWeight: FontWeight.w700,
-                    color: fgColor,
+                    color: borderColor,
+                    shadows: [
+                      Shadow(
+                          color: borderColor.withValues(alpha: 0.5),
+                          blurRadius: 4),
+                    ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 6),
+            PhosphorText(
+              question.text,
+              fontSize: 9,
+              height: 1.5,
+            ),
+            const SizedBox(height: 6),
+            Container(height: 1, color: borderColor.withValues(alpha: 0.3)),
+            const SizedBox(height: 6),
+            PhosphorText(answerLine, fontSize: 8, dim: true),
+            if (!isCorrect) ...[
+              const SizedBox(height: 4),
+              Text(
+                correctLine,
+                style: GoogleFonts.silkscreen(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.phosphor,
+                  letterSpacing: 1.0,
+                  shadows: const [
+                    Shadow(color: AppColors.phosphorDim, blurRadius: 4),
+                  ],
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
+// ── Bottom action strip ────────────────────────────────────────────
+
+class _BottomActionStrip extends StatelessWidget {
+  const _BottomActionStrip({required this.onHome});
+  final VoidCallback onHome;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.shell,
+        border: Border(
+          top: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: PixelButton(
+        label: '< BACK TO HOME',
+        onPressed: onHome,
+        color: AppColors.btnMagenta,
+        textColor: AppColors.shellLight,
+        fullWidth: true,
+        fontSize: 10,
+      ),
+    );
+  }
+}

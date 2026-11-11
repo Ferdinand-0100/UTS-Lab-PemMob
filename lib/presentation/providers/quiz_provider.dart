@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/core/utils/result.dart';
 import 'package:quiz_app/data/datasources/remote/supabase_quiz_datasource.dart';
@@ -40,25 +41,32 @@ final calculateQuizScoreProvider = Provider<CalculateQuizScore>(
 );
 
 /// State held while a quiz is in progress: list of quizzes for the home
-/// screen and the loading status.
+/// screen, the loading status, and the current user's pass status per quiz.
 class HomeState {
   const HomeState({
     this.quizzes = const [],
+    this.userPassedQuizIds = const {},
     this.loading = false,
     this.errorMessage,
   });
 
   final List<Quiz> quizzes;
+
+  /// Set of quiz IDs that the current user has passed at least once.
+  final Set<String> userPassedQuizIds;
+
   final bool loading;
   final String? errorMessage;
 
   HomeState copyWith({
     List<Quiz>? quizzes,
+    Set<String>? userPassedQuizIds,
     bool? loading,
     String? errorMessage,
   }) {
     return HomeState(
       quizzes: quizzes ?? this.quizzes,
+      userPassedQuizIds: userPassedQuizIds ?? this.userPassedQuizIds,
       loading: loading ?? this.loading,
       errorMessage: errorMessage,
     );
@@ -66,14 +74,15 @@ class HomeState {
 }
 
 class HomeNotifier extends StateNotifier<HomeState> {
-  HomeNotifier(this._getQuizzes, this._repository) : super(const HomeState());
+  HomeNotifier(this._getQuizzes, this._repository, this._ref)
+      : super(const HomeState());
 
   final GetQuizzes _getQuizzes;
   final QuizRepository _repository;
+  final Ref _ref;
 
   Future<void> load() async {
     state = state.copyWith(loading: true, errorMessage: null);
-    // Ensure the async data source has populated the in-memory cache.
     try {
       await _repository.ensureLoaded();
     } catch (_) {
@@ -83,12 +92,56 @@ class HomeNotifier extends StateNotifier<HomeState> {
       );
       return;
     }
+
     final result = _getQuizzes();
     switch (result) {
       case Success(:final value):
-        state = HomeState(quizzes: value, loading: false);
+        // Also fetch the current user's passed quiz IDs in parallel.
+        final passedIds = await _fetchUserPassedQuizIds(value);
+        state = HomeState(
+          quizzes: value,
+          userPassedQuizIds: passedIds,
+          loading: false,
+        );
       case FailureResult():
-        state = state.copyWith(loading: false, errorMessage: 'Failed to load quizzes.');
+        state = state.copyWith(
+            loading: false, errorMessage: 'Failed to load quizzes.');
+    }
+  }
+
+  /// Fetches scores for the current user and returns the set of quiz IDs
+  /// they have passed at least once.  Fails silently — pass badges are
+  /// decorative; a failed fetch just shows no badges.
+  Future<Set<String>> _fetchUserPassedQuizIds(List<Quiz> quizzes) async {
+    final user = _ref.read(authStateProvider).valueOrNull;
+    if (user == null) return {};
+
+    try {
+      final client = _ref.read(supabaseClientProvider);
+
+      // Build a map of quizId → passingScore from the loaded quiz list
+      // so we don't need to join quizzes again.
+      final passingScoreByQuiz = {
+        for (final q in quizzes) q.id: q.passingScore,
+      };
+
+      final rows = await client
+          .from('scores')
+          .select('quiz_id, percent')
+          .eq('user_id', user.id);
+
+      final passed = <String>{};
+      for (final row in rows) {
+        final quizId = row['quiz_id'] as String;
+        final percent = (row['percent'] as num).toDouble();
+        final passingScore = passingScoreByQuiz[quizId] ?? 60.0;
+        if (percent >= passingScore) {
+          passed.add(quizId);
+        }
+      }
+      return passed;
+    } catch (_) {
+      return {};
     }
   }
 }
@@ -98,6 +151,7 @@ final homeNotifierProvider =
   return HomeNotifier(
     ref.read(getQuizzesProvider),
     ref.read(quizRepositoryProvider),
+    ref,
   );
 });
 
@@ -162,10 +216,12 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
   final GetQuizQuestions _getQuizQuestions;
 
   Timer? _timer;
+  bool _paused = false;
 
   /// Loads a quiz by id and initializes play state.
   void start(String quizId) {
     _timer?.cancel();
+    _paused = false;
     state = const QuizPlayLoading();
     final result = _getQuizQuestions(quizId);
     switch (result) {
@@ -174,6 +230,25 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
         _startTimer();
       case FailureResult(:final failure):
         state = QuizPlayError(failure.message);
+    }
+  }
+
+  /// Pauses the countdown without changing the remaining time.
+  /// Call this when the answer flash starts.
+  void pauseTimer() {
+    _paused = true;
+    _timer?.cancel();
+  }
+
+  /// Resumes the countdown from wherever it was paused.
+  /// Call this after the flash ends, just before advancing.
+  void resumeTimer() {
+    if (!_paused) return;
+    _paused = false;
+    final current = state;
+    // Only restart if still active and not yet complete.
+    if (current is QuizPlayActive && !current.isComplete) {
+      _startTimer();
     }
   }
 
@@ -190,6 +265,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
 
   /// Called when the timer hits zero: advance with no answer recorded.
   void _timeout() {
+    if (_paused) return; // don't time out while flash is showing
     final current = state;
     if (current is! QuizPlayActive || current.isComplete) return;
     _advanceFrom(current.copyWith(timeLeft: 0));
@@ -198,6 +274,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
   /// Shared logic for advancing to the next question or finishing the quiz.
   void _advanceFrom(QuizPlayActive current) {
     _timer?.cancel();
+    _paused = false;
 
     final isLast = current.currentIndex == current.quiz.questions.length - 1;
     if (isLast) {
@@ -214,6 +291,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_paused) return; // tick silently while paused
       final current = state;
       if (current is! QuizPlayActive || current.isComplete) {
         timer.cancel();
@@ -231,6 +309,7 @@ class QuizPlayNotifier extends StateNotifier<QuizPlayState> {
   /// Resets the notifier back to idle so a new quiz can start cleanly.
   void reset() {
     _timer?.cancel();
+    _paused = false;
     state = const QuizPlayLoading();
   }
 

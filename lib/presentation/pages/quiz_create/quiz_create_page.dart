@@ -12,23 +12,8 @@ import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
-/// Admin-only page for creating a new quiz or editing an existing one.
-///
-/// Pass [editQuizId] to enter edit mode — the form will pre-populate from
-/// the cached quiz data and submit via [QuizCreateNotifier.updateQuiz].
-///
-/// Anti-Design signature moves:
-///  (1) Accent-serif italic in the headline.
-///  (3) Tilted stamp on section labels.
-///  (5) Hairline crop ticks between sections.
-///  (6) Gap swing throughout.
-///
-/// Uses [AppTopStrip], [AppSectionLabel], [AppMonoLabel], [AppErrorBanner]
-/// from the shared widget library.
 class QuizCreatePage extends ConsumerStatefulWidget {
   const QuizCreatePage({super.key, this.editQuizId});
-
-  /// When non-null, the page operates in edit mode for this quiz ID.
   final String? editQuizId;
 
   @override
@@ -42,10 +27,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
   final _passingScoreCtrl = TextEditingController(
     text: AppConstants.passingScorePercent.toStringAsFixed(0),
   );
-
-  // Each question is represented as a map of controllers.
   final List<_QuestionControllers> _questions = [];
-
   bool _prefilled = false;
 
   bool get _isEditing => widget.editQuizId != null;
@@ -56,41 +38,27 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     if (_isEditing) {
       _prefillFromSource();
     } else {
-      _addQuestion(); // start with one empty question for create mode
+      _addQuestion();
     }
   }
 
-  /// Pre-populates the form by fetching fresh data from the repository.
-  ///
-  /// Calls [ensureLoaded] first so we always read up-to-date data —
-  /// this avoids the stale-cache race where a previous edit's
-  /// delete+insert is still in-flight when the cache is re-read.
   void _prefillFromSource() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_prefilled || !mounted) return;
       _prefilled = true;
 
-      // Always ensure the cache is fresh before reading — this guarantees
-      // we never read a mid-update snapshot from a previous save's
-      // delete+insert race.
       final repo = ref.read(quizRepositoryProvider);
       if (repo is QuizRemoteRepositoryImpl) repo.invalidate();
       try {
         await repo.ensureLoaded();
       } catch (_) {
-        // Network error — fall back to a blank question.
-        if (mounted) {
-          setState(() {
-            _questions.clear();
-            _addQuestion();
-          });
-        }
+        if (mounted) setState(() { _questions.clear(); _addQuestion(); });
         return;
       }
-
       if (!mounted) return;
 
-      final result = ref.read(getQuizQuestionsProvider).call(widget.editQuizId!);
+      final result =
+          ref.read(getQuizQuestionsProvider).call(widget.editQuizId!);
       switch (result) {
         case Success(:final value):
           _titleCtrl.text = value.title;
@@ -111,11 +79,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             if (_questions.isEmpty) _addQuestion();
           });
         case FailureResult():
-          // Quiz not found even after a fresh load — start with a blank form.
-          setState(() {
-            _questions.clear();
-            _addQuestion();
-          });
+          setState(() { _questions.clear(); _addQuestion(); });
       }
     });
   }
@@ -125,20 +89,18 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _passingScoreCtrl.dispose();
-    for (final q in _questions) {
-      q.dispose();
-    }
+    for (final q in _questions) q.dispose();
     super.dispose();
   }
 
-  void _addQuestion() {
-    setState(() => _questions.add(_QuestionControllers()));
-  }
+  void _addQuestion() => setState(() => _questions.add(_QuestionControllers()));
 
   void _removeQuestion(int index) {
-    if (_questions.length <= 1) return; // keep at least one
-    setState(() => _questions[index].dispose());
-    setState(() => _questions.removeAt(index));
+    if (_questions.length <= 1) return;
+    setState(() {
+      _questions[index].dispose();
+      _questions.removeAt(index);
+    });
   }
 
   Future<void> _submit() async {
@@ -148,9 +110,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
         double.tryParse(_passingScoreCtrl.text.trim()) ??
         AppConstants.passingScorePercent;
 
-    // Build the payload
     final questions = _questions.asMap().entries.map((e) {
-      final i = e.key;
       final q = e.value;
       return QuestionDraft(
         text: q.textCtrl.text.trim(),
@@ -159,7 +119,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
         explanation: q.explanationCtrl.text.trim().isEmpty
             ? null
             : q.explanationCtrl.text.trim(),
-        order: i,
+        order: e.key,
       );
     }).toList();
 
@@ -182,25 +142,28 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
 
     final state = ref.read(quizCreateNotifierProvider);
     if (state.errorMessage == null && mounted) {
-      // Reload home state before navigating so the quiz card reflects the
-      // updated question count immediately, without a stale-cache flash.
       await ref.read(homeNotifierProvider.notifier).load();
-      if (mounted) context.go(AppRouter.home);
+      if (mounted) {
+        context.crtNavigate(
+          label: 'PUBLISHING...',
+          onDone: () => context.go(AppRouter.home),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).valueOrNull;
-
-    // Guard — non-admins should never reach this page, but just in case.
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        body: Center(
-          child: Text(
-            'ACCESS DENIED.',
-            style: GoogleFonts.spaceMono(fontSize: 14, color: AppColors.alarm),
+        backgroundColor: AppColors.shell,
+        body: Padding(
+          padding: const EdgeInsets.all(12),
+          child: CrtScreen(
+            child: Center(
+              child: AppErrorBanner('ACCESS DENIED'),
+            ),
           ),
         ),
       );
@@ -209,127 +172,182 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     final createState = ref.watch(quizCreateNotifierProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: AppColors.shell,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Shared top strip ──────────────────────────────────────
+            // ── Shell top strip ──────────────────────────────────────
             AppTopStrip(
-              onBack: () => context.go(AppRouter.home),
-              title: 'ADMIN',
+              onBack: () => context.crtNavigate(
+                label: 'RETURNING...',
+                onDone: () => context.go(AppRouter.home),
+              ),
+              title: _isEditing ? 'EDIT QUIZ' : 'CREATE QUIZ',
             ),
+
+            // ── CRT screen form ──────────────────────────────────────
             Expanded(
-              child: Form(
-                key: _formKey,
-                child: CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Headline (signature move 1)
-                            _Headline(isEditing: _isEditing),
-                            const SizedBox(height: AppColors.nudge * 2),
-                            // ── Shared AppSectionLabel ────────────────
-                            const AppSectionLabel(label: 'QUIZ INFO'),
-                            const SizedBox(height: AppColors.nudge),
-                            // ── Shared AppMonoLabel ───────────────────
-                            const AppMonoLabel('TITLE'),
-                            const SizedBox(height: AppColors.gapTight),
-                            _CreateField(
-                              controller: _titleCtrl,
-                              hint: 'e.g. Advanced Flutter',
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Required'
-                                  : null,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                child: CrtScreen(
+                  padding: EdgeInsets.zero,
+                  child: Form(
+                    key: _formKey,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                PhosphorText(
+                                  _isEditing ? 'EDIT QUIZ' : 'NEW QUIZ',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                const SizedBox(height: 4),
+                                PhosphorText(
+                                  'ADMIN CONSOLE  //  QUIZ EDITOR',
+                                  fontSize: 7,
+                                  dim: true,
+                                ),
+                                const SizedBox(height: 14),
+                                const PixelDivider(),
+                                const SizedBox(height: 12),
+
+                                AppSectionLabel(
+                                  label: 'QUIZ INFO',
+                                  accentColor: AppColors.btnMagenta,
+                                ),
+                                const SizedBox(height: 10),
+
+                                const AppMonoLabel('TITLE'),
+                                const SizedBox(height: 6),
+                                ConsoleTextField(
+                                  controller: _titleCtrl,
+                                  hint: 'Quiz title',
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Required'
+                                          : null,
+                                ),
+                                const SizedBox(height: 10),
+
+                                const AppMonoLabel('DESCRIPTION'),
+                                const SizedBox(height: 6),
+                                ConsoleTextField(
+                                  controller: _descCtrl,
+                                  hint: 'Short description',
+                                  maxLines: 3,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Required'
+                                          : null,
+                                ),
+                                const SizedBox(height: 10),
+
+                                const AppMonoLabel('PASSING SCORE (%)'),
+                                const SizedBox(height: 6),
+                                ConsoleTextField(
+                                  controller: _passingScoreCtrl,
+                                  hint: '60',
+                                  keyboardType: TextInputType.number,
+                                  validator: (v) {
+                                    final n = double.tryParse(v?.trim() ?? '');
+                                    if (n == null || n < 0 || n > 100) {
+                                      return 'Enter 0-100';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                AppSectionLabel(
+                                  label: 'QUESTIONS',
+                                  accentColor: AppColors.btnMagenta,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: AppColors.nudge),
-                            const AppMonoLabel('DESCRIPTION'),
-                            const SizedBox(height: AppColors.gapTight),
-                            _CreateField(
-                              controller: _descCtrl,
-                              hint: 'Short description of the quiz',
-                              maxLines: 3,
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Required'
-                                  : null,
+                          ),
+                        ),
+
+                        // Question cards
+                        SliverList.builder(
+                          itemCount: _questions.length,
+                          itemBuilder: (context, i) => Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                            child: _QuestionCard(
+                              index: i,
+                              controllers: _questions[i],
+                              canRemove: _questions.length > 1,
+                              onRemove: () => _removeQuestion(i),
+                              onCorrectChanged: (idx) => setState(
+                                  () => _questions[i].correctIndex = idx),
                             ),
-                            const SizedBox(height: AppColors.nudge),
-                            const AppMonoLabel('PASSING SCORE (%)'),
-                            const SizedBox(height: AppColors.gapTight),
-                            _CreateField(
-                              controller: _passingScoreCtrl,
-                              hint: '60',
-                              keyboardType: TextInputType.number,
-                              validator: (v) {
-                                final n = double.tryParse(v?.trim() ?? '');
-                                if (n == null || n < 0 || n > 100) {
-                                  return 'Enter a number between 0 and 100';
-                                }
-                                return null;
-                              },
+                          ),
+                        ),
+
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                            child: PixelButton(
+                              label: '+ ADD QUESTION',
+                              onPressed: _addQuestion,
+                              color: AppColors.btnBlue,
+                              textColor: AppColors.shellLight,
+                              fullWidth: true,
+                              fontSize: 9,
                             ),
-                            const SizedBox(height: AppColors.nudge * 2),
-                            const AppSectionLabel(label: 'QUESTIONS'),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    // Question cards
-                    SliverList.builder(
-                      itemCount: _questions.length,
-                      itemBuilder: (context, i) => Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        child: _QuestionCard(
-                          index: i,
-                          controllers: _questions[i],
-                          canRemove: _questions.length > 1,
-                          onRemove: () => _removeQuestion(i),
-                          onCorrectChanged: (idx) => setState(
-                              () => _questions[i].correctIndex = idx),
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: OutlinedButton(
-                          onPressed: _addQuestion,
-                          child: const Text('+ ADD QUESTION'),
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 48),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (createState.errorMessage != null) ...[
-                              AppErrorBanner(createState.errorMessage!),
-                              const SizedBox(height: AppColors.nudge),
-                            ],
-                            FilledButton(
-                              onPressed: createState.loading ? null : _submit,
-                              child: createState.loading
-                                  ? SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: AppColors.borderFrame,
-                                        color: Theme.of(context).colorScheme.onSurface,
+
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(12, 14, 12, 24),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                              children: [
+                                if (createState.errorMessage != null) ...[
+                                  AppErrorBanner(
+                                      createState.errorMessage!),
+                                  const SizedBox(height: 10),
+                                ],
+                                createState.loading
+                                    ? _LoadingBtn()
+                                    : PixelButton(
+                                        label: _isEditing
+                                            ? 'SAVE CHANGES'
+                                            : 'PUBLISH QUIZ',
+                                        onPressed: _submit,
+                                        color: AppColors.btnMagenta,
+                                        textColor: AppColors.shellLight,
+                                        fullWidth: true,
+                                        fontSize: 10,
                                       ),
-                                    )
-                                  : Text(_isEditing ? 'SAVE CHANGES' : 'PUBLISH QUIZ'),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Bottom shell ─────────────────────────────────────────
+            Container(
+              height: 48,
+              decoration: const BoxDecoration(
+                color: AppColors.shell,
+                border: Border(
+                  top: BorderSide(
+                      color: AppColors.outline, width: AppColors.borderFrame),
                 ),
               ),
             ),
@@ -340,116 +358,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
   }
 }
 
-// ── Headline ───────────────────────────────────────────────────────────────
-
-class _Headline extends StatelessWidget {
-  const _Headline({required this.isEditing});
-  final bool isEditing;
-
-  @override
-  Widget build(BuildContext context) {
-    final screenW = MediaQuery.sizeOf(context).width;
-    final displaySize =
-        (screenW / 6.0).clamp(AppColors.displayMin, AppColors.displayMax);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          isEditing ? 'EDIT' : 'CREATE',
-          style: GoogleFonts.bricolageGrotesque(
-            fontSize: displaySize,
-            fontWeight: FontWeight.w800,
-            height: AppColors.displayLeading,
-            letterSpacing: -2.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        // Accent-serif italic (signature move 1)
-        Text(
-          'Quiz',
-          style: GoogleFonts.instrumentSerif(
-            fontSize: displaySize * 0.95,
-            fontStyle: FontStyle.italic,
-            height: AppColors.displayLeading,
-            letterSpacing: -1.5,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Create field ───────────────────────────────────────────────────────────
-
-class _CreateField extends StatelessWidget {
-  const _CreateField({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-    this.validator,
-    this.keyboardType,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  final String? Function(String?)? validator;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      style: GoogleFonts.instrumentSans(
-        fontSize: AppColors.bodySize,
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.instrumentSans(
-          fontSize: AppColors.bodySize,
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.outline,
-              width: AppColors.borderRule),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.outline,
-              width: AppColors.borderFrame),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: AppColors.alarm, width: AppColors.borderRule),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: AppColors.alarm, width: AppColors.borderFrame),
-        ),
-        errorStyle: GoogleFonts.spaceMono(fontSize: 10, color: AppColors.alarm),
-      ),
-      validator: validator,
-    );
-  }
-}
-
-// ── Question card ──────────────────────────────────────────────────────────
+// ── Question card ──────────────────────────────────────────────────
 
 class _QuestionCard extends StatelessWidget {
   const _QuestionCard({
@@ -459,7 +368,6 @@ class _QuestionCard extends StatelessWidget {
     required this.onRemove,
     required this.onCorrectChanged,
   });
-
   final int index;
   final _QuestionControllers controllers;
   final bool canRemove;
@@ -471,108 +379,131 @@ class _QuestionCard extends StatelessWidget {
     final indexStr = (index + 1).toString().padLeft(2, '0');
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 2),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
+        color: AppColors.crtBgDeep,
+        border: Border.all(
+            color: AppColors.phosphorDim, width: AppColors.borderRule),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Card header
           Row(
             children: [
-              Text(
-                'Q$indexStr',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  color: Theme.of(context).colorScheme.outlineVariant,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                color: AppColors.phosphorDim,
+                child: Text(
+                  'Q$indexStr',
+                  style: GoogleFonts.silkscreen(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.crtBgDeep,
+                  ),
                 ),
               ),
               const Spacer(),
               if (canRemove)
                 GestureDetector(
                   onTap: onRemove,
-                  child: Text(
-                    'REMOVE',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 9,
-                      letterSpacing: 1.5,
-                      color: AppColors.alarm,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: AppColors.btnRed, width: AppColors.borderRule),
+                    ),
+                    child: Text(
+                      'REMOVE',
+                      style: GoogleFonts.silkscreen(
+                          fontSize: 7,
+                          color: AppColors.btnRed,
+                          letterSpacing: 1.0),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: AppColors.nudge),
-          AppMonoLabel('QUESTION TEXT'),
-          const SizedBox(height: AppColors.gapTight),
-          _CreateField(
+          const SizedBox(height: 10),
+
+          const AppMonoLabel('QUESTION'),
+          const SizedBox(height: 6),
+          ConsoleTextField(
             controller: controllers.textCtrl,
-            hint: 'Enter the question',
+            hint: 'Enter question text',
             maxLines: 2,
             validator: (v) =>
                 (v == null || v.trim().isEmpty) ? 'Required' : null,
           ),
-          const SizedBox(height: AppColors.nudge),
-          AppMonoLabel('OPTIONS  (tap circle to mark correct answer)'),
-          const SizedBox(height: AppColors.gapTight),
+          const SizedBox(height: 10),
+
+          const AppMonoLabel('OPTIONS  (tap circle = correct answer)'),
+          const SizedBox(height: 6),
           ...List.generate(4, (i) {
             final letter = String.fromCharCode(65 + i);
             final isCorrect = controllers.correctIndex == i;
             return Padding(
-              padding: const EdgeInsets.only(bottom: AppColors.gapTight),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  // Correct answer selector
+                  // Correct selector
                   GestureDetector(
                     onTap: () => onCorrectChanged(i),
                     child: Container(
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            isCorrect ? AppColors.acid : Theme.of(context).colorScheme.surface,
+                        color: isCorrect
+                            ? AppColors.phosphor
+                            : Colors.transparent,
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: isCorrect
+                              ? AppColors.phosphor
+                              : AppColors.phosphorDim,
                           width: AppColors.borderRule,
                         ),
                       ),
                       child: isCorrect
-                          ? Icon(Icons.check,
-                              size: 14, color: Theme.of(context).colorScheme.onSurface)
+                          ? const Icon(Icons.check,
+                              size: 13, color: AppColors.crtBgDeep)
                           : null,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$letter.',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 20,
+                    height: 20,
+                    color: AppColors.phosphorDim.withValues(alpha: 0.3),
+                    child: Center(
+                      child: Text(
+                        letter,
+                        style: GoogleFonts.silkscreen(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.phosphorDim),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
-                    child: _CreateField(
+                    child: ConsoleTextField(
                       controller: controllers.optionCtrls[i],
                       hint: 'Option $letter',
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Required'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
                     ),
                   ),
                 ],
               ),
             );
           }),
-          const SizedBox(height: AppColors.gapTight),
-          AppMonoLabel('EXPLANATION (optional)'),
-          const SizedBox(height: AppColors.gapTight),
-          _CreateField(
+
+          const AppMonoLabel('EXPLANATION (OPTIONAL)'),
+          const SizedBox(height: 6),
+          ConsoleTextField(
             controller: controllers.explanationCtrl,
             hint: 'Why is this the correct answer?',
             maxLines: 2,
@@ -583,7 +514,38 @@ class _QuestionCard extends StatelessWidget {
   }
 }
 
-// ── Question controllers holder ────────────────────────────────────────────
+// ── Loading button ─────────────────────────────────────────────────
+
+class _LoadingBtn extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.btnMagenta.withValues(alpha: 0.5),
+        border:
+            Border.all(color: AppColors.outline, width: AppColors.borderRule),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.shellLight,
+            ),
+          ),
+          const SizedBox(width: 10),
+          ShellText('SAVING...', fontSize: 9, color: AppColors.shellLight),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Question controllers ───────────────────────────────────────────
 
 class _QuestionControllers {
   final textCtrl = TextEditingController();
@@ -594,9 +556,6 @@ class _QuestionControllers {
   void dispose() {
     textCtrl.dispose();
     explanationCtrl.dispose();
-    for (final c in optionCtrls) {
-      c.dispose();
-    }
+    for (final c in optionCtrls) c.dispose();
   }
 }
-

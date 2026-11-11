@@ -1,30 +1,48 @@
 import 'package:flutter/material.dart';
 
-/// Anti-Design token set.
+/// CRT Console Design token set.
 ///
-/// Static color constants (accent slabs, spacing, typography) are defined
-/// here. Surface colors (paper/ink/grid) vary by theme — use [AppSurface]
-/// to read them from the live [BuildContext] instead of hardcoding.
+/// The app is themed as a chunky retro handheld console.
+/// Every surface is either the plastic shell or the inset CRT screen.
+/// Accents are arcade-bright button colors.
+/// Text on screens uses phosphor green only.
 abstract final class AppColors {
-  // ── Light surface tokens ─────────────────────────────────────────
-  static const Color paper     = Color(0xFFF3F2EC); // off-white
-  static const Color ink       = Color(0xFF0A0A0A); // near-black
-  static const Color grid      = Color(0xFFBDBCB4); // hairline guide
+  // ── Plastic shell ────────────────────────────────────────────────
+  static const Color shell       = Color(0xFFC8C2B0); // warm console plastic
+  static const Color shellDark   = Color(0xFF8E8878); // panel lips, bevels
+  static const Color shellLight  = Color(0xFFE6E1D2); // top highlights
+  static const Color outline     = Color(0xFF14161F); // all hard outlines
 
-  // ── Dark surface tokens ──────────────────────────────────────────
-  static const Color paperDark = Color(0xFF111111); // near-black surface
-  static const Color inkDark   = Color(0xFFF0EFE8); // off-white text
-  static const Color gridDark  = Color(0xFF4A4A44); // muted guide
+  // ── CRT screen ───────────────────────────────────────────────────
+  static const Color crtBg       = Color(0xFF0F2F3A); // dark teal screen
+  static const Color crtBgDeep   = Color(0xFF0A1F27); // deeper shadow
+  static const Color phosphor    = Color(0xFF7CE38B); // screen text / bubble
+  static const Color phosphorDim = Color(0xFF3F8F55); // dimmer screen text
 
-  // ── Slab accent tokens (same in both modes) ──────────────────────
-  static const Color acid      = Color(0xFFD7FF1F);
-  static const Color alarm     = Color(0xFFFF3B1D);
-  static const Color bubblegum = Color(0xFFFF8FE0);
-  static const Color volt      = Color(0xFF2B2BFF);
+  // ── Arcade button colors ─────────────────────────────────────────
+  static const Color btnBlue     = Color(0xFF2F6FED);
+  static const Color btnBlueSel  = Color(0xFF0A18E6); // selected/pressed
+  static const Color btnMagenta  = Color(0xFFC928C9); // primary action
+  static const Color btnGreen    = Color(0xFF1F4D12); // play
+  static const Color btnYellow   = Color(0xFFEDB93B); // pause
+  static const Color btnRed      = Color(0xFFE5472A); // stop / alarm
 
-  // ── Link tokens ───────────────────────────────────────────────────
-  static const Color link        = Color(0xFF0000EE);
-  static const Color linkVisited = Color(0xFF551A8B);
+  // ── Legacy aliases kept for accent slabs that never change ───────
+  /// Always-light accent (maps to acid yellow-green → use shell highlight)
+  static const Color acid        = Color(0xFF7CE38B); // phosphor green stands in
+  static const Color alarm       = btnRed;
+  static const Color bubblegum   = Color(0xFF3F8F55); // phosphorDim as a muted accent
+  static const Color volt        = btnBlue;
+
+  // ── Constant surface aliases (always-dark text on always-light bg) ─
+  static const Color paper       = shellLight;
+  static const Color ink         = outline;
+  static const Color grid        = shellDark;
+
+  // ── Dark surface aliases ─────────────────────────────────────────
+  static const Color paperDark   = crtBgDeep;
+  static const Color inkDark     = phosphor;
+  static const Color gridDark    = phosphorDim;
 
   // ── Spacing tokens (logical pixels) ──────────────────────────────
   static const double nudge         = 12.0;
@@ -32,53 +50,48 @@ abstract final class AppColors {
   static const double gapWide       = 96.0;
   static const double gapWideCompact = 64.0;
 
+  // ── px unit — base pixel grid unit (all borders/lips/shadows use multiples)
+  static const double px            = 4.0;
+
   // ── Typography scale tokens ───────────────────────────────────────
-  static const double bodySize       = 16.0;
-  static const double supportingSize = 15.0;
-  static const double labelSize      = 12.0;
-  static const double displayMin     = 64.0;
-  static const double displayMax     = 168.0;
-  static const double displayLeading = 0.85;
-  static const double bodyLeading    = 1.45;
+  static const double bodySize       = 11.0;  // pixel font reads small
+  static const double supportingSize = 10.0;
+  static const double labelSize      = 9.0;
+  static const double displayMin     = 20.0;
+  static const double displayMax     = 36.0;
+  static const double displayLeading = 1.2;
+  static const double bodyLeading    = 1.6;
 
   // ── Border tokens ─────────────────────────────────────────────────
-  static const double borderFrame = 3.0;
-  static const double borderRule  = 1.0;
+  static const double borderFrame = 3.0;  // chunky 3px border
+  static const double borderRule  = 2.0;  // standard border (2px min on console)
+
+  // ── Button depth shadow (solid, not blurred) ──────────────────────
+  static const double btnDepth    = 5.0;  // how many px the button "sticks out"
 
   // ── Angle tokens (radians) ────────────────────────────────────────
   static const double angleNote  =  0.0349; //  2 deg
   static const double angleStamp = -0.0873; // -5 deg
 
   // ── Sticker tokens ────────────────────────────────────────────────
-  static const double stickerSize        = 88.0;
-  static const double stickerSizeCompact = 64.0;
+  static const double stickerSize        = 72.0;
+  static const double stickerSizeCompact = 52.0;
 }
 
-// ── Theme-aware surface accessor ─────────────────────────────────────────
-//
-// Replace every hardcoded `c.paper` / `c.ink` / `c.grid` with
-// `AppSurface.of(context).paper` etc., OR keep using the `ct(context)`
-// shorthand alias defined below.
-//
-// The old compile-time `c` alias is kept for widgets that intentionally
-// want the LIGHT values (e.g. text drawn on a fixed accent slab like
-// AppColors.acid which is always light).
-
-/// Compile-time constants — use only when the color must be LIGHT regardless
-/// of theme (e.g. text on an acid/alarm slab that never changes).
+// ── compile-time alias for always-light text on accent slabs ─────────────
 abstract final class c {
-  static const Color paper = AppColors.paper;
-  static const Color ink   = AppColors.ink;
-  static const Color grid  = AppColors.grid;
+  static const Color paper = AppColors.shellLight;
+  static const Color ink   = AppColors.outline;
+  static const Color grid  = AppColors.shellDark;
 }
 
-/// Theme-aware surface colors resolved from [BuildContext].
+/// Theme-aware surface resolver.
 ///
-/// Usage:
-/// ```dart
-/// final s = AppSurface.of(context);
-/// Container(color: s.surface, child: Text('hello', style: TextStyle(color: s.onSurface)));
-/// ```
+/// In this console theme we only have ONE visual mode — the CRT screen
+/// is always dark teal with phosphor green text.  The "light" scaffold
+/// is the plastic shell; the "screen" is always CRT-dark.
+///
+/// Usage: `final s = AppSurface.of(context);`
 class AppSurface {
   const AppSurface._({
     required this.surface,
@@ -86,27 +99,16 @@ class AppSurface {
     required this.guide,
   });
 
-  /// Background / card color (paper in light, near-black in dark).
   final Color surface;
-
-  /// Primary text / stroke color (ink in light, off-white in dark).
   final Color onSurface;
-
-  /// Hairline guide / muted label color.
   final Color guide;
 
   static AppSurface of(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? const AppSurface._(
-            surface:   AppColors.paperDark,
-            onSurface: AppColors.inkDark,
-            guide:     AppColors.gridDark,
-          )
-        : const AppSurface._(
-            surface:   AppColors.paper,
-            onSurface: AppColors.ink,
-            guide:     AppColors.grid,
-          );
+    // We always use CRT-dark for screens; scaffold bg is handled via Scaffold.
+    return const AppSurface._(
+      surface:   AppColors.crtBg,
+      onSurface: AppColors.phosphor,
+      guide:     AppColors.phosphorDim,
+    );
   }
 }

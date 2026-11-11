@@ -7,16 +7,6 @@ import 'package:quiz_app/presentation/providers/friend_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
-/// Friends page — manage friendships and view friends' quiz progress.
-///
-/// Anti-Design signature moves:
-///  (1) Accent-serif italic in the headline.
-///  (3) Tilted stamp on section headers.
-///  (5) Hairline crop ticks as dividers.
-///  (6) Gap swing throughout.
-///
-/// Uses [AppTopStrip], [AppSectionLabel], [AppLoadingView], [AppErrorBanner]
-/// from the shared widget library.
 class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
@@ -53,140 +43,154 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     final state = ref.watch(friendListProvider);
 
     return Scaffold(
-      backgroundColor: AppSurface.of(context).surface,
+      backgroundColor: AppColors.shell,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Shared top strip ──────────────────────────────────────
+            // ── Shell top strip ──────────────────────────────────────
             AppTopStrip(
-              onBack: () => context.go(AppRouter.home),
-              title: '03 FRIENDS',
+              onBack: () => context.crtNavigate(
+                label: 'RETURNING...',
+                onDone: () => context.go(AppRouter.home),
+              ),
+              title: 'FRIENDS',
             ),
+
+            // ── CRT screen ───────────────────────────────────────────
             Expanded(
-              child: state.loading
-                  ? const AppLoadingView()
-                  : CustomScrollView(
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _Headline(),
-                                const SizedBox(height: AppColors.nudge * 2),
-                                // Error banner
-                                if (state.errorMessage != null) ...[
-                                  AppErrorBanner(state.errorMessage!),
-                                  const SizedBox(height: AppColors.nudge),
-                                ],
-                                // Add friend section
-                                AppSectionLabel(
-                                  label: 'ADD FRIEND',
-                                  accentColor: AppColors.bubblegum,
-                                ),
-                                const SizedBox(height: AppColors.nudge),
-                                Row(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                child: CrtScreen(
+                  padding: EdgeInsets.zero,
+                  child: state.loading
+                      ? const AppLoadingView()
+                      : CustomScrollView(
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    Expanded(
-                                      child: _FriendField(
-                                        controller: _emailCtrl,
-                                        hint: 'Friend\'s email',
-                                      ),
+                                    // Screen title
+                                    PhosphorText(
+                                      'FRIENDS & PROGRESS',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
                                     ),
-                                    const SizedBox(width: AppColors.gapTight),
-                                    GestureDetector(
-                                      onTap: _sendRequest,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 14,
-                                        ),
-                                        color: AppColors.acid,
-                                        child: Text(
-                                          'SEND',
-                                          style: GoogleFonts.spaceMono(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 1.5,
-                                            color: Theme.of(context).colorScheme.onSurface,
+                                    const SizedBox(height: 4),
+                                    PhosphorText(
+                                      'MANAGE YOUR PLAYER CONNECTIONS',
+                                      fontSize: 7,
+                                      dim: true,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const PixelDivider(),
+                                    const SizedBox(height: 12),
+
+                                    // Error banner
+                                    if (state.errorMessage != null) ...[
+                                      AppErrorBanner(state.errorMessage!),
+                                      const SizedBox(height: 10),
+                                    ],
+
+                                    // Add friend
+                                    AppSectionLabel(
+                                      label: 'ADD FRIEND',
+                                      accentColor: AppColors.btnBlue,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ConsoleTextField(
+                                            controller: _emailCtrl,
+                                            hint: "Friend's email",
+                                            keyboardType:
+                                                TextInputType.emailAddress,
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 8),
+                                        PixelButton(
+                                          label: 'SEND',
+                                          onPressed: _sendRequest,
+                                          color: AppColors.btnMagenta,
+                                          textColor: AppColors.shellLight,
+                                          fontSize: 9,
+                                        ),
+                                      ],
                                     ),
+                                    const SizedBox(height: 16),
+
+                                    // Friends section header
+                                    AppSectionLabel(
+                                      label: 'FRIENDS LIST',
+                                      accentColor: AppColors.btnBlue,
+                                    ),
+                                    const SizedBox(height: 8),
                                   ],
                                 ),
-                                const SizedBox(height: AppColors.nudge * 2),
-                                AppSectionLabel(
-                                  label: 'FRIENDS',
-                                  accentColor: AppColors.bubblegum,
+                              ),
+                            ),
+
+                            // Friend list
+                            if (state.friends.isEmpty)
+                              const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  child: Center(
+                                    child: PhosphorText(
+                                      'NO FRIENDS YET.\nSEND A REQUEST ABOVE.',
+                                      fontSize: 9,
+                                      dim: true,
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: AppColors.nudge),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Friend list
-                        if (state.friends.isEmpty)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                              child: Text(
-                                'NO FRIENDS YET.\nSEND A REQUEST ABOVE.',
-                                style: GoogleFonts.bricolageGrotesque(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
-                                  height: AppColors.displayLeading,
-                                  color: Theme.of(context).colorScheme.outlineVariant,
+                              )
+                            else
+                              SliverList.builder(
+                                itemCount: state.friends.length,
+                                itemBuilder: (context, i) => Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      12, 0, 12, 8),
+                                  child: _FriendCard(
+                                    entry: state.friends[i],
+                                    onAccept: () => ref
+                                        .read(friendListProvider.notifier)
+                                        .acceptRequest(
+                                            state.friends[i].friendshipId),
+                                    onRemove: () => ref
+                                        .read(friendListProvider.notifier)
+                                        .removeFriend(
+                                            state.friends[i].friendshipId),
+                                  ),
                                 ),
                               ),
+
+                            // Activity feed — hidden, pass counts
+                            // are shown per friend card instead.
+
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 24),
                             ),
-                          )
-                        else
-                          SliverList.builder(
-                            itemCount: state.friends.length,
-                            itemBuilder: (context, i) => Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                              child: _FriendCard(
-                                entry: state.friends[i],
-                                onAccept: () => ref
-                                    .read(friendListProvider.notifier)
-                                    .acceptRequest(
-                                        state.friends[i].friendshipId),
-                                onRemove: () => ref
-                                    .read(friendListProvider.notifier)
-                                    .removeFriend(
-                                        state.friends[i].friendshipId),
-                              ),
-                            ),
-                          ),
-                        // Progress feed
-                        if (state.scores.isNotEmpty) ...[
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                              child: AppSectionLabel(
-                                label: 'RECENT ACTIVITY',
-                                accentColor: AppColors.bubblegum,
-                              ),
-                            ),
-                          ),
-                          SliverList.builder(
-                            itemCount: state.scores.length,
-                            itemBuilder: (context, i) => Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                              child: _ScoreCard(score: state.scores[i]),
-                            ),
-                          ),
-                        ],
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 48),
+                          ],
                         ),
-                      ],
-                    ),
+                ),
+              ),
+            ),
+
+            // ── Bottom shell strip ───────────────────────────────────
+            Container(
+              height: 48,
+              decoration: const BoxDecoration(
+                color: AppColors.shell,
+                border: Border(
+                  top: BorderSide(
+                      color: AppColors.outline, width: AppColors.borderFrame),
+                ),
+              ),
             ),
           ],
         ),
@@ -195,83 +199,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
   }
 }
 
-// ── Friend field ───────────────────────────────────────────────────────────
-
-class _Headline extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final screenW = MediaQuery.sizeOf(context).width;
-    final displaySize =
-        (screenW / 6.0).clamp(AppColors.displayMin, AppColors.displayMax);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'FRIENDS',
-          style: GoogleFonts.bricolageGrotesque(
-            fontSize: displaySize,
-            fontWeight: FontWeight.w800,
-            height: AppColors.displayLeading,
-            letterSpacing: -2.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        Text(
-          '& Progress',
-          style: GoogleFonts.instrumentSerif(
-            fontSize: displaySize * 0.85,
-            fontStyle: FontStyle.italic,
-            height: AppColors.displayLeading,
-            letterSpacing: -1.5,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Friend field ───────────────────────────────────────────────────────────
-
-class _FriendField extends StatelessWidget {
-  const _FriendField({required this.controller, required this.hint});
-  final TextEditingController controller;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.emailAddress,
-      style: GoogleFonts.instrumentSans(
-          fontSize: AppColors.bodySize, color: Theme.of(context).colorScheme.onSurface),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.instrumentSans(
-            fontSize: AppColors.bodySize, color: Theme.of(context).colorScheme.outlineVariant),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.outline,
-              width: AppColors.borderRule),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.outline,
-              width: AppColors.borderFrame),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Friend card ────────────────────────────────────────────────────────────
+// ── Friend card ────────────────────────────────────────────────────
 
 class _FriendCard extends StatelessWidget {
   const _FriendCard({
@@ -279,7 +207,6 @@ class _FriendCard extends StatelessWidget {
     required this.onAccept,
     required this.onRemove,
   });
-
   final FriendEntry entry;
   final VoidCallback onAccept;
   final VoidCallback onRemove;
@@ -287,168 +214,162 @@ class _FriendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPending = entry.status == FriendshipStatus.pending;
-    final bgColor =
-        isPending ? AppColors.bubblegum : Theme.of(context).colorScheme.surface;
+    final borderColor = isPending ? AppColors.btnYellow : AppColors.phosphorDim;
+    final isAccepted = entry.status == FriendshipStatus.accepted;
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
-        border:
-            Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
+        color: AppColors.crtBgDeep,
+        border: Border.all(color: borderColor, width: AppColors.borderRule),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.displayName.toUpperCase(),
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isPending
-                      ? (entry.isSentByMe
-                          ? 'REQUEST SENT'
-                          : 'WANTS TO BE FRIENDS')
-                      : 'FRIEND',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    letterSpacing: 1.5,
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Accept button (only for incoming pending requests)
-          if (isPending && !entry.isSentByMe) ...[
-            GestureDetector(
-              onTap: onAccept,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
-                color: AppColors.acid,
-                child: Text(
-                  'ACCEPT',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppColors.gapTight),
-          ],
-          // Remove / cancel button
-          GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                border: Border.all(
-                    color: Theme.of(context).colorScheme.onSurface, width: AppColors.borderRule),
-              ),
-              child: Text(
-                isPending ? 'CANCEL' : 'REMOVE',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  color: AppColors.alarm,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Score card ─────────────────────────────────────────────────────────────
-
-class _ScoreCard extends StatelessWidget {
-  const _ScoreCard({required this.score});
-  final FriendScore score;
-
-  @override
-  Widget build(BuildContext context) {
-    final bgColor = score.passed ? AppColors.acid : AppColors.alarm;
-    final fgColor = score.passed ? c.ink : c.paper;
-    final percentStr = '${score.percent.toStringAsFixed(0)}%';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        border:
-            Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  score.displayName.toUpperCase(),
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: fgColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  score.quizTitle,
-                  style: GoogleFonts.instrumentSans(
-                    fontSize: AppColors.bodySize,
-                    fontWeight: FontWeight.w600,
-                    color: fgColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                percentStr,
-                style: GoogleFonts.bricolageGrotesque(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
-                  color: fgColor,
+              // Status LED
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: isPending ? AppColors.btnYellow : AppColors.phosphor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isPending
+                              ? AppColors.btnYellow
+                              : AppColors.phosphor)
+                          .withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                score.passed ? 'PASSED' : 'FAILED',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  color: fgColor,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PhosphorText(
+                      entry.displayName.toUpperCase(),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    const SizedBox(height: 2),
+                    PhosphorText(
+                      isPending
+                          ? (entry.isSentByMe
+                              ? 'REQUEST SENT'
+                              : 'WANTS TO CONNECT')
+                          : 'CONNECTED',
+                      fontSize: 7,
+                      dim: true,
+                    ),
+                  ],
                 ),
+              ),
+              // Accept button for incoming pending
+              if (isPending && !entry.isSentByMe) ...[
+                PixelButton(
+                  label: 'ACCEPT',
+                  onPressed: onAccept,
+                  color: AppColors.btnGreen,
+                  textColor: AppColors.shellLight,
+                  fontSize: 7,
+                  depth: 3,
+                ),
+                const SizedBox(width: 6),
+              ],
+              // Remove/cancel
+              PixelButton(
+                label: isPending ? 'CANCEL' : 'REMOVE',
+                onPressed: onRemove,
+                color: AppColors.btnRed,
+                textColor: AppColors.shellLight,
+                fontSize: 7,
+                depth: 3,
               ),
             ],
           ),
+
+          // ── Quiz pass count bar (accepted friends only) ──────────
+          if (isAccepted && entry.totalQuizCount > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              height: 1,
+              color: AppColors.phosphorDim.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 6),
+            _QuizPassBar(
+              passed: entry.passedQuizCount,
+              total: entry.totalQuizCount,
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-// ── Headline (signature move 1) ────────────────────────────────────────────
+// ── Quiz pass bar ──────────────────────────────────────────────────
+
+class _QuizPassBar extends StatelessWidget {
+  const _QuizPassBar({required this.passed, required this.total});
+  final int passed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final allPassed = passed == total;
+    final barColor = allPassed ? AppColors.phosphor : AppColors.btnYellow;
+
+    return Row(
+      children: [
+        PhosphorText('QUIZZES', fontSize: 6, dim: true),
+        const SizedBox(width: 6),
+        // Block segments: one per quiz, filled = passed
+        Expanded(
+          child: Row(
+            children: List.generate(total, (i) {
+              final isFilled = i < passed;
+              return Expanded(
+                child: Container(
+                  height: 8,
+                  margin: EdgeInsets.only(right: i < total - 1 ? 2 : 0),
+                  decoration: BoxDecoration(
+                    color: isFilled ? barColor : AppColors.crtBg,
+                    border: Border.all(
+                      color: isFilled
+                          ? barColor
+                          : AppColors.phosphorDim.withValues(alpha: 0.4),
+                      width: 1,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(width: 6),
+        // e.g.  2/3
+        Text(
+          '$passed/$total',
+          style: GoogleFonts.silkscreen(
+            fontSize: 7,
+            fontWeight: FontWeight.w700,
+            color: barColor,
+            shadows: [
+              Shadow(
+                color: barColor.withValues(alpha: 0.5),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// (Score card removed — pass counts are shown per friend card instead.)

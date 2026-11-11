@@ -2,12 +2,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:quiz_app/core/services/sound_service.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/quiz.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
-import 'package:quiz_app/presentation/providers/theme_provider.dart';
 import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -18,12 +18,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  static const _slabColors = [
-    AppColors.alarm,
-    AppColors.bubblegum,
-    AppColors.acid,
-  ];
-
   bool _loaded = false;
 
   @override
@@ -40,392 +34,691 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeNotifierProvider);
-
-    final Widget content;
-    if (!_loaded || state.loading) {
-      content = const _LoadingView();
-    } else if (state.errorMessage != null) {
-      content = _ErrorView(
-        message: state.errorMessage!,
-        onRetry: () => ref.read(homeNotifierProvider.notifier).load(),
-      );
-    } else if (state.quizzes.isEmpty) {
-      content = const _EmptyView();
-    } else {
-      content = _QuizList(
-        quizzes: state.quizzes,
-        slabColors: _slabColors,
-        isAdmin: ref.watch(authStateProvider).valueOrNull?.isAdmin ?? false,
-      );
-    }
+    final user = ref.watch(authStateProvider).valueOrNull;
+    final isAdmin = user?.isAdmin ?? false;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(child: content),
-      floatingActionButton: _AdminFab(),
-    );
-  }
-}
+      backgroundColor: AppColors.shell,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Shell nav strip ──────────────────────────────────────
+            _NavStrip(user: user, isAdmin: isAdmin),
 
-// ---------------------------------------------------------------------------
-// Admin FAB
-// ---------------------------------------------------------------------------
+            // ── CRT screen area ──────────────────────────────────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                child: CrtBootScreen(
+                  padding: EdgeInsets.zero,
+                  child: !_loaded || state.loading
+                      ? const AppLoadingView()
+                      : state.errorMessage != null
+                          ? _ErrorView(
+                              message: state.errorMessage!,
+                              onRetry: () =>
+                                  ref.read(homeNotifierProvider.notifier).load(),
+                            )
+                          : state.quizzes.isEmpty
+                              ? const _EmptyView()
+                              : _QuizList(
+                                  quizzes: state.quizzes,
+                                  isAdmin: isAdmin,
+                                  userPassedQuizIds: state.userPassedQuizIds,
+                                ),
+                ),
+              ),
+            ),
 
-class _AdminFab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).valueOrNull;
-    if (user == null || !user.isAdmin) return const SizedBox.shrink();
-    final s = AppSurface.of(context);
-
-    return Semantics(
-      label: 'Create new quiz',
-      button: true,
-      child: GestureDetector(
-        onTap: () => context.push(AppRouter.quizCreate),
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.acid,
-            border: Border.all(color: s.onSurface, width: AppColors.borderFrame),
-          ),
-          child: Icon(Icons.add, color: s.onSurface, size: 28),
+            // ── Shell control deck ───────────────────────────────────
+            _ControlDeck(isAdmin: isAdmin),
+          ],
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Nav strip
-// ---------------------------------------------------------------------------
+// ── Shell nav strip ────────────────────────────────────────────────
 
-class _MonoNavStrip extends ConsumerWidget {
-  const _MonoNavStrip();
+class _NavStrip extends ConsumerWidget {
+  const _NavStrip({required this.user, required this.isAdmin});
+  final dynamic user;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).valueOrNull;
     final displayName = user?.displayName ?? '';
-    final isAdmin = user?.isAdmin ?? false;
-    final s = AppSurface.of(context);
 
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
+        color: AppColors.shellDark,
         border: Border(
-          bottom: BorderSide(color: s.onSurface, width: AppColors.borderRule),
+          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Text(
-            'QUIZ MASTER',
-            style: GoogleFonts.spaceMono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2.0,
-              color: s.onSurface,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (displayName.isNotEmpty) ...[
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          displayName.toUpperCase(),
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceMono(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.0,
-                            color: s.onSurface,
-                          ),
-                        ),
-                        if (isAdmin)
-                          Text(
-                            'ADMIN',
-                            style: GoogleFonts.spaceMono(
-                              fontSize: 8,
-                              letterSpacing: 1.5,
-                              color: s.guide,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                IconButton(
-                  tooltip: 'Toggle dark mode',
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    ref.watch(themeModeProvider) == ThemeMode.dark
-                        ? Icons.light_mode
-                        : Icons.dark_mode,
-                    color: s.onSurface,
-                  ),
-                  onPressed: () {
-                    final current = ref.read(themeModeProvider);
-                    ref.read(themeModeProvider.notifier).state =
-                        current == ThemeMode.dark
-                            ? ThemeMode.light
-                            : ThemeMode.dark;
-                  },
-                ),
-                if (!isAdmin) ...[
-                  Semantics(
-                    label: 'Friends',
-                    button: true,
-                    child: GestureDetector(
-                      onTap: () => context.push(AppRouter.friends),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.bubblegum,
-                          border: Border.all(
-                            color: s.onSurface,
-                            width: AppColors.borderRule,
-                          ),
-                        ),
-                        child: Text(
-                          'FRIENDS',
-                          style: GoogleFonts.spaceMono(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Semantics(
-                  label: 'Sign out',
-                  button: true,
-                  child: GestureDetector(
-                    onTap: () async =>
-                        ref.read(authNotifierProvider.notifier).signOut(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: s.onSurface,
-                          width: AppColors.borderRule,
-                        ),
-                      ),
-                      child: Text(
-                        'SIGN OUT',
-                        style: GoogleFonts.spaceMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.5,
-                          color: s.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
+          // Power LED
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: AppColors.phosphor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.outline, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.phosphor.withValues(alpha: 0.7),
+                  blurRadius: 6,
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          ShellText('QUIZ MASTER', fontSize: 9, color: AppColors.shellLight),
+          if (isAdmin) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              color: AppColors.btnRed,
+              child: ShellText('ADMIN', fontSize: 6, color: AppColors.shellLight),
+            ),
+          ],
+          const Spacer(),
+          if (displayName.isNotEmpty) ...[
+            ShellText(
+              displayName.toUpperCase(),
+              fontSize: 7,
+              color: AppColors.shell,
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (!isAdmin) ...[
+            _ShellIconBtn(
+              label: 'FRIENDS',
+              color: AppColors.btnBlue,
+              onTap: () => context.crtNavigate(
+                label: 'LOADING FRIENDS...',
+                onDone: () => context.push(AppRouter.friends),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          _ShellIconBtn(
+            label: 'EXIT',
+            color: AppColors.btnRed,
+            onTap: () => ref.read(authNotifierProvider.notifier).signOut(),
+          ),
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Headline slab
-// ---------------------------------------------------------------------------
+class _ShellIconBtn extends ConsumerWidget {
+  const _ShellIconBtn({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 
-class _HeadlineSlab extends StatelessWidget {
-  const _HeadlineSlab({required this.quizCount, required this.isAdmin});
-  final int quizCount;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () {
+        ref.read(soundServiceProvider).playClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color,
+          border: Border.all(color: AppColors.outline, width: AppColors.borderRule),
+          boxShadow: [
+            BoxShadow(
+              color: Color.fromARGB(
+                255,
+                (color.red * 0.5).round(),
+                (color.green * 0.5).round(),
+                (color.blue * 0.5).round(),
+              ),
+              offset: const Offset(0, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: ShellText(label, fontSize: 7, color: AppColors.shellLight),
+      ),
+    );
+  }
+}
+
+// ── Quiz list inside CRT ───────────────────────────────────────────
+
+class _QuizList extends StatelessWidget {
+  const _QuizList({
+    required this.quizzes,
+    required this.isAdmin,
+    required this.userPassedQuizIds,
+  });
+  final List<Quiz> quizzes;
+  final bool isAdmin;
+  final Set<String> userPassedQuizIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ScreenHeader(count: quizzes.length, isAdmin: isAdmin),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
+            itemCount: quizzes.length,
+            itemBuilder: (context, i) => _QuizCard(
+              quiz: quizzes[i],
+              index: i,
+              isAdmin: isAdmin,
+              hasPassed: userPassedQuizIds.contains(quizzes[i].id),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScreenHeader extends StatelessWidget {
+  const _ScreenHeader({required this.count, required this.isAdmin});
+  final int count;
   final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    final screenW = MediaQuery.sizeOf(context).width;
-    final displaySize =
-        (screenW / 5.2).clamp(AppColors.displayMin, AppColors.displayMax);
-
     return Container(
-      width: double.infinity,
-      color: s.surface,
-      padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.phosphorDim, width: AppColors.borderRule),
+        ),
+      ),
+      child: Row(
         children: [
-          Positioned(
-            right: -displaySize * 0.28,
-            top: 0,
-            child: ExcludeSemantics(
-              child: Text(
-                'QUIZ',
-                style: GoogleFonts.bricolageGrotesque(
-                  fontSize: displaySize * 1.1,
-                  fontWeight: FontWeight.w800,
-                  height: AppColors.displayLeading,
-                  letterSpacing: -2.0,
-                  color: s.guide.withValues(alpha: 0.28),
-                ),
-              ),
-            ),
-          ),
-          screenW < 600
-              ? _headlineStack(displaySize, s)
-              : _headlineRow(displaySize, s),
+          PhosphorText('SELECT QUIZ', fontSize: 9, fontWeight: FontWeight.w700),
+          const SizedBox(width: 6),
+          const BlinkingCursor(fontSize: 9),
+          const Spacer(),
+          PhosphorText('$count AVAILABLE', fontSize: 8, dim: true),
         ],
       ),
     );
   }
+}
 
-  Widget _headlineStack(double displaySize, AppSurface s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _displayText(displaySize, s),
-        const SizedBox(height: AppColors.gapWide / 4),
-        _factsColumn(s),
-      ],
-    );
+// ── Quiz card ──────────────────────────────────────────────────────
+
+class _QuizCard extends StatefulWidget {
+  const _QuizCard({
+    required this.quiz,
+    required this.index,
+    required this.isAdmin,
+    required this.hasPassed,
+  });
+  final Quiz quiz;
+  final int index;
+  final bool isAdmin;
+  final bool hasPassed;
+
+  @override
+  State<_QuizCard> createState() => _QuizCardState();
+}
+
+class _QuizCardState extends State<_QuizCard> {
+  bool _pressed = false;
+
+  void _navigate() {
+    if (widget.isAdmin) {
+      context.crtNavigate(
+        label: 'LOADING EDITOR...',
+        onDone: () => context.push(AppRouter.quizEditPath(widget.quiz.id)),
+      );
+    } else {
+      context.crtNavigate(
+        label: 'LOADING QUIZ...',
+        onDone: () => context.push(AppRouter.quizPlayPath(widget.quiz.id)),
+      );
+    }
   }
 
-  Widget _headlineRow(double displaySize, AppSurface s) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(flex: 3, child: _displayText(displaySize, s)),
-        const SizedBox(width: 24),
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppColors.nudge),
-          child: _factsColumn(s),
-        ),
-      ],
-    );
+  /// Difficulty color based on passing score threshold:
+  ///   < 60%  → green  (easy)
+  ///   60–79% → blue   (medium)
+  ///   ≥ 80%  → magenta (hard)
+  Color get _difficultyAccent {
+    final pass = widget.quiz.passingScore;
+    if (pass < 60) return AppColors.btnGreen;
+    if (pass < 80) return AppColors.btnBlue;
+    return AppColors.btnMagenta;
   }
 
-  Widget _displayText(double displaySize, AppSurface s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'QUIZ',
-          style: GoogleFonts.bricolageGrotesque(
-            fontSize: displaySize,
-            fontWeight: FontWeight.w800,
-            height: AppColors.displayLeading,
-            letterSpacing: -2.0,
-            color: s.onSurface,
-          ),
-        ),
-        Text(
-          'Master',
-          style: GoogleFonts.instrumentSerif(
-            fontSize: displaySize * 0.95,
-            fontStyle: FontStyle.italic,
-            height: AppColors.displayLeading,
-            letterSpacing: -1.5,
-            color: s.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final accent = _difficultyAccent;
+    final indexStr = (widget.index + 1).toString().padLeft(2, '0');
 
-  Widget _factsColumn(AppSurface s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _monoFact('QUIZZES', '$quizCount AVAILABLE', s),
-        const SizedBox(height: AppColors.gapTight),
-        _monoFact('FORMAT', isAdmin ? 'EDIT MCQ' : 'TIMED MCQ', s),
-      ],
-    );
-  }
-
-  Widget _monoFact(String label, String value, AppSurface s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.spaceMono(
-            fontSize: 9,
-            color: s.guide,
-            letterSpacing: 1.5,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: _navigate,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
+          transform: _pressed
+              ? (Matrix4.identity()..translate(0.0, 3.0))
+              : Matrix4.identity(),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Depth shadow
+              Positioned(
+                left: 0, right: 0, bottom: -4,
+                child: Container(
+                  height: 4,
+                  color: _pressed
+                      ? Colors.transparent
+                      : Color.fromARGB(
+                          255,
+                          (accent.red * 0.4).round(),
+                          (accent.green * 0.4).round(),
+                          (accent.blue * 0.4).round(),
+                        ),
+                ),
+              ),
+              // Card face
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.crtBgDeep,
+                  border: Border.all(color: accent, width: AppColors.borderRule),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        // Index badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          color: accent,
+                          child: Text(
+                            indexStr,
+                            style: GoogleFonts.silkscreen(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.crtBgDeep,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: PhosphorText(
+                            widget.quiz.title.toUpperCase(),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        PhosphorText(
+                          '${widget.quiz.length}Q',
+                          fontSize: 8,
+                          dim: true,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    PhosphorText(
+                      widget.quiz.description,
+                      fontSize: 8,
+                      dim: true,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: AppColors.borderRule,
+                      color: accent.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (!widget.isAdmin) ...[
+                          PhosphorText(
+                            'PASS ${widget.quiz.passingScore.toStringAsFixed(0)}%  ',
+                            fontSize: 7,
+                            dim: true,
+                          ),
+                          // Difficulty pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            color: accent.withValues(alpha: 0.2),
+                            child: Text(
+                              accent == AppColors.btnGreen
+                                  ? 'EASY'
+                                  : accent == AppColors.btnBlue
+                                      ? 'MED'
+                                      : 'HARD',
+                              style: GoogleFonts.silkscreen(
+                                fontSize: 6,
+                                color: accent,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                          // Pass badge — only shown after the user has passed
+                          if (widget.hasPassed) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.phosphor,
+                                border: Border.all(
+                                    color: AppColors.phosphor, width: 1),
+                              ),
+                              child: Text(
+                                '✓ PASSED',
+                                style: GoogleFonts.silkscreen(
+                                  fontSize: 6,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.crtBgDeep,
+                                  letterSpacing: 1.0,
+                                  shadows: [
+                                    Shadow(
+                                      color: AppColors.phosphorDim,
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                        const Spacer(),
+                        PhosphorText(
+                          widget.isAdmin ? '> EDIT' : '> PLAY',
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        Text(
-          value,
-          style: GoogleFonts.spaceMono(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: s.onSurface,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Count sticker (signature move 2) — always on bubblegum, always ink text
-// ---------------------------------------------------------------------------
+// ── Control deck (bottom shell) ────────────────────────────────────
+// Game Boy-inspired: tall shell with large D-pad on the left,
+// SELECT+START pill buttons in the center, and big circular A/B
+// action buttons on the right. Speaker grille on the far right.
 
-class _CountSticker extends StatelessWidget {
-  const _CountSticker({required this.count});
-  final int count;
+class _ControlDeck extends ConsumerWidget {
+  const _ControlDeck({required this.isAdmin});
+  final bool isAdmin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ShellPanel(
+      border: const Border(
+        top: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 34, 16, 34),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // ── Left: D-pad ─────────────────────────────────────────
+          _DPad(),
+
+          const Spacer(),
+
+          // ── Center: SELECT + START pills + admin button ─────────
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isAdmin)
+                PixelButton(
+                  label: '+ NEW QUIZ',
+                  onPressed: () => context.push(AppRouter.quizCreate),
+                  color: AppColors.btnMagenta,
+                  textColor: AppColors.shellLight,
+                  fontSize: 8,
+                  depth: 3,
+                )
+              else
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _PillButton(label: 'SELECT'),
+                    const SizedBox(width: 10),
+                    _PillButton(label: 'START'),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              ShellText(
+                isAdmin ? 'ADMIN MODE' : 'QUIZ MASTER',
+                fontSize: 6,
+                color: AppColors.shellDark,
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          // ── Right: B + A action buttons + speaker grille ─────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // B button (smaller, lower)
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: _ActionDot(
+                  color: AppColors.btnMagenta,
+                  label: 'B',
+                  size: 42,
+                ),
+              ),
+              const SizedBox(width: 10),
+              // A button (larger, higher)
+              _ActionDot(
+                color: AppColors.btnMagenta,
+                label: 'A',
+                size: 50,
+              ),
+              const SizedBox(width: 14),
+              // Speaker grille
+              _SpeakerGrille(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DPad extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Game Boy D-pad: cross shape, each arm is 20×22px, center 22×22
+    const arm = 23.0;
+    const center = 25.0;
+    const total = arm * 2 + center; // 62px
+
+    return SizedBox(
+      width: total,
+      height: total,
+      child: Stack(
+        children: [
+          // Up arm
+          Positioned(
+            top: 0, left: arm, right: arm,
+            child: _DPadArm(height: arm),
+          ),
+          // Down arm
+          Positioned(
+            bottom: 0, left: arm, right: arm,
+            child: _DPadArm(height: arm),
+          ),
+          // Left arm
+          Positioned(
+            left: 0, top: arm, bottom: arm,
+            child: _DPadArm(width: arm),
+          ),
+          // Right arm
+          Positioned(
+            right: 0, top: arm, bottom: arm,
+            child: _DPadArm(width: arm),
+          ),
+          // Center nub
+          Positioned(
+            left: arm, right: arm, top: arm, bottom: arm,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.outline,
+                border: Border.all(color: AppColors.outline, width: 1),
+              ),
+              child: Center(
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.shellDark,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 3,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Arrow indicators (small triangles as text)
+          Positioned(
+            top: 3, left: 0, right: 0,
+            child: Center(
+              child: Text('▲', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
+            ),
+          ),
+          Positioned(
+            bottom: 3, left: 0, right: 0,
+            child: Center(
+              child: Text('▼', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
+            ),
+          ),
+          Positioned(
+            left: 3, top: 0, bottom: 0,
+            child: Center(
+              child: Text('◀', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
+            ),
+          ),
+          Positioned(
+            right: 3, top: 0, bottom: 0,
+            child: Center(
+              child: Text('▶', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DPadArm extends StatelessWidget {
+  const _DPadArm({this.width, this.height});
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    return ExcludeSemantics(
-      child: Container(
-        width: AppColors.stickerSize,
-        height: AppColors.stickerSize,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.bubblegum,
-          border: Border.all(color: s.onSurface, width: AppColors.borderRule),
-        ),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        border: Border.all(color: AppColors.outline, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xFF111111),
+            offset: Offset(1, 2),
+            blurRadius: 2,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Oval SELECT / START pill button, like original Game Boy
+class _PillButton extends ConsumerStatefulWidget {
+  const _PillButton({required this.label});
+  final String label;
+
+  @override
+  ConsumerState<_PillButton> createState() => _PillButtonState();
+}
+
+class _PillButtonState extends ConsumerState<_PillButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        ref.read(soundServiceProvider).playClick();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        transform: _pressed
+            ? (Matrix4.identity()..translate(0.0, 2.0))
+            : Matrix4.identity(),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Text(
-              '$count',
-              style: GoogleFonts.bricolageGrotesque(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                height: 1.0,
-                color: AppColors.ink,
+            Container(
+              width: 52,
+              height: 20,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCCCBBF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.outline, width: 1.5),
               ),
-            ),
-            Text(
-              'QUIZZES',
-              style: GoogleFonts.spaceMono(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
-                color: AppColors.ink,
+              child: Center(
+                child: Text(
+                  widget.label,
+                  style: GoogleFonts.silkscreen(
+                    fontSize: 6,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.btnBlue,
+                    letterSpacing: 1.0,
+                  ),
+                ),
               ),
             ),
           ],
@@ -435,394 +728,132 @@ class _CountSticker extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Accent strip with sticker
-// ---------------------------------------------------------------------------
-
-class _AccentStripWithSticker extends StatelessWidget {
-  const _AccentStripWithSticker(
-      {required this.quizCount, required this.isAdmin});
-  final int quizCount;
-  final bool isAdmin;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: double.infinity,
-          color: AppColors.acid,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              Text(
-                isAdmin ? 'SELECT A QUIZ TO EDIT' : 'SELECT A QUIZ TO BEGIN',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.0,
-                  color: AppColors.ink,
-                ),
-              ),
-              const Spacer(),
-              ExcludeSemantics(
-                child: Transform.rotate(
-                  angle: AppColors.angleStamp,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                          color: AppColors.ink, width: AppColors.borderRule),
-                    ),
-                    child: Text(
-                      isAdmin ? 'EDIT ->' : 'BEGIN ->',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: -(AppColors.stickerSize / 3),
-          right: 16,
-          child: _CountSticker(count: quizCount),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Crop ticks + grid guide — theme-aware
-// ---------------------------------------------------------------------------
-
-class _CropTicks extends StatelessWidget {
-  const _CropTicks();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    return ExcludeSemantics(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(
-              4, (_) => SizedBox(
-                    width: 10,
-                    height: 10,
-                    child: CustomPaint(painter: _CropTickPainter(s.guide)),
-                  )),
-        ),
-      ),
-    );
-  }
-}
-
-class _CropTickPainter extends CustomPainter {
-  const _CropTickPainter(this.color);
+class _ActionDot extends ConsumerStatefulWidget {
+  const _ActionDot({required this.color, required this.label, this.size = 40});
   final Color color;
+  final String label;
+  final double size;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = AppColors.borderRule
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-        Offset(0, size.height / 2), Offset(size.width * 0.4, size.height / 2), paint);
-    canvas.drawLine(
-        Offset(size.width / 2, 0), Offset(size.width / 2, size.height * 0.4), paint);
-  }
-
-  @override
-  bool shouldRepaint(_CropTickPainter old) => old.color != color;
+  ConsumerState<_ActionDot> createState() => _ActionDotState();
 }
 
-class _GridGuide extends StatelessWidget {
-  const _GridGuide();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    return ExcludeSemantics(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Container(height: AppColors.borderRule, color: s.guide),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Quiz card — theme-aware
-// ---------------------------------------------------------------------------
-
-class _QuizCard extends StatefulWidget {
-  const _QuizCard({
-    super.key,
-    required this.quiz,
-    required this.index,
-    required this.slabColor,
-    required this.nudgeRight,
-    required this.widthFactor,
-    required this.isAdmin,
-  });
-
-  final Quiz quiz;
-  final int index;
-  final Color slabColor;
-  final bool nudgeRight;
-  final double widthFactor;
-  final bool isAdmin;
-
-  @override
-  State<_QuizCard> createState() => _QuizCardState();
-}
-
-class _QuizCardState extends State<_QuizCard> {
+class _ActionDotState extends ConsumerState<_ActionDot> {
   bool _pressed = false;
-  bool _hovered = false;
-
-  void _navigate() {
-    if (widget.isAdmin) {
-      context.push(AppRouter.quizEditPath(widget.quiz.id));
-    } else {
-      context.push(AppRouter.quizPlayPath(widget.quiz.id));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    final bottomGap =
-        widget.index.isEven ? AppColors.gapWide / 8 : AppColors.gapTight;
-    final indexStr = (widget.index + 1).toString().padLeft(2, '0');
-    final inverted = _pressed || _hovered;
+    final shadowColor = Color.fromARGB(
+      255,
+      (widget.color.red * 0.4).round(),
+      (widget.color.green * 0.4).round(),
+      (widget.color.blue * 0.4).round(),
+    );
 
-    // When inverted: use onSurface bg + surface text (works in both modes).
-    final cardBg = inverted ? s.onSurface : widget.slabColor;
-    final textColor = inverted ? s.surface : AppColors.ink;
-
-    return Semantics(
-      label: widget.isAdmin
-          ? 'Edit quiz ${widget.index + 1}: ${widget.quiz.title}.'
-          : 'Quiz ${widget.index + 1}: ${widget.quiz.title}. '
-              '${widget.quiz.description}. ${widget.quiz.length} questions.',
-      button: true,
-      child: Actions(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                _navigate();
-                return null;
-              }),
-        },
-        child: Focus(
-          child: Builder(builder: (ctx) {
-            final focused = Focus.of(ctx).hasFocus;
-            return Padding(
-              padding: EdgeInsets.only(bottom: bottomGap),
-              child: LayoutBuilder(builder: (context, constraints) {
-                final cardWidth = constraints.maxWidth * widget.widthFactor;
-                return Align(
-                  alignment: widget.nudgeRight
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: GestureDetector(
-                    onTap: _navigate,
-                    onTapDown: (_) => setState(() => _pressed = true),
-                    onTapUp: (_) => setState(() => _pressed = false),
-                    onTapCancel: () => setState(() => _pressed = false),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      onEnter: (_) => setState(() => _hovered = true),
-                      onExit: (_) => setState(() => _hovered = false),
-                      child: SizedBox(
-                        width: cardWidth,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            border: Border.all(
-                              color: s.onSurface,
-                              width: focused
-                                  ? AppColors.borderFrame
-                                  : AppColors.borderRule,
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    indexStr,
-                                    style: GoogleFonts.spaceMono(
-                                      fontSize: 11,
-                                      letterSpacing: 1.0,
-                                      color: textColor.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  if (!widget.isAdmin) ...[
-                                    Text(
-                                      'PASS ${widget.quiz.passingScore.toStringAsFixed(0)}%',
-                                      style: GoogleFonts.spaceMono(
-                                        fontSize: 11,
-                                        letterSpacing: 1.0,
-                                        color:
-                                            textColor.withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                  ],
-                                  Text(
-                                    '${widget.quiz.length} QS',
-                                    style: GoogleFonts.spaceMono(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 1.0,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppColors.gapTight),
-                              Text(
-                                widget.quiz.title.toUpperCase(),
-                                style: GoogleFonts.bricolageGrotesque(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
-                                  height: 0.9,
-                                  letterSpacing: -0.5,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                widget.quiz.description,
-                                style: GoogleFonts.instrumentSans(
-                                  fontSize: AppColors.supportingSize,
-                                  height: AppColors.bodyLeading,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Container(
-                                height: AppColors.borderRule,
-                                color: textColor.withValues(alpha: 0.4),
-                              ),
-                              const SizedBox(height: AppColors.gapTight),
-                              Text(
-                                widget.isAdmin ? 'EDIT ->' : 'START ->',
-                                style: GoogleFonts.spaceMono(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2.0,
-                                  color: textColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        ref.read(soundServiceProvider).playClick();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        transform: _pressed
+            ? (Matrix4.identity()..translate(0.0, 3.0))
+            : Matrix4.identity(),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (!_pressed)
+              Positioned(
+                left: 0, right: 0, bottom: -4,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: shadowColor,
+                    shape: BoxShape.circle,
                   ),
-                );
-              }),
-            );
-          }),
+                ),
+              ),
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                color: widget.color,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.outline, width: AppColors.borderRule),
+                gradient: RadialGradient(
+                  center: const Alignment(-0.3, -0.3),
+                  radius: 0.7,
+                  colors: [
+                    widget.color.withValues(alpha: 0.85),
+                    widget.color,
+                    shadowColor,
+                  ],
+                  stops: const [0.0, 0.6, 1.0],
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  widget.label,
+                  style: GoogleFonts.silkscreen(
+                    fontSize: widget.size * 0.22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.shellLight.withValues(alpha: 0.9),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Quiz list
-// ---------------------------------------------------------------------------
-
-const _widthCycle = [1.0, 0.84, 0.92];
-
-class _QuizList extends StatelessWidget {
-  const _QuizList(
-      {required this.quizzes,
-      required this.slabColors,
-      required this.isAdmin});
-  final List<Quiz> quizzes;
-  final List<Color> slabColors;
-  final bool isAdmin;
-
+/// Speaker grille — vertical slits like Game Boy
+class _SpeakerGrille extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _MonoNavStrip(),
-              _HeadlineSlab(quizCount: quizzes.length, isAdmin: isAdmin),
-              const SizedBox(height: AppColors.gapTight),
-              _AccentStripWithSticker(
-                  quizCount: quizzes.length, isAdmin: isAdmin),
-              const SizedBox(height: AppColors.nudge * 2),
-              const _CropTicks(),
-              const SizedBox(height: AppColors.gapTight),
-              const _GridGuide(),
-              const SizedBox(height: AppColors.nudge * 2),
-            ],
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-          sliver: SliverList.builder(
-            itemCount: quizzes.length,
-            itemBuilder: (context, index) {
-              final slab = slabColors[index % slabColors.length];
-              final widthFactor = _widthCycle[index % _widthCycle.length];
-              return _QuizCard(
-                key: ValueKey(quizzes[index].id),
-                quiz: quizzes[index],
-                index: index,
-                slabColor: slab,
-                nudgeRight: index.isEven,
-                widthFactor: widthFactor,
-                isAdmin: isAdmin,
-              );
-            },
-          ),
-        ),
-      ],
+    return SizedBox(
+      width: 20,
+      height: 48,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(5, (i) {
+          return Container(
+            width: 2.5,
+            decoration: BoxDecoration(
+              color: AppColors.shellDark,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          );
+        }),
+      ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Loading / error / empty states
-// ---------------------------------------------------------------------------
+// ── Empty / Error / Loading views ──────────────────────────────────
 
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
+class _EmptyView extends StatelessWidget {
+  const _EmptyView();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _MonoNavStrip(),
-        Expanded(child: AppLoadingView()),
-      ],
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PhosphorText('NO QUIZZES', fontSize: 14, fontWeight: FontWeight.w700),
+          SizedBox(height: 8),
+          PhosphorText('AVAILABLE.', fontSize: 14, fontWeight: FontWeight.w700),
+          SizedBox(height: 16),
+          PhosphorText('[ INSERT QUIZ ]', fontSize: 9, dim: true),
+        ],
+      ),
     );
   }
 }
@@ -834,57 +865,23 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _MonoNavStrip(),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppErrorBanner(message),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: onRetry,
-                  child: const Text('RETRY'),
-                ),
-              ],
-            ),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppErrorBanner(message),
+          const SizedBox(height: 16),
+          PixelButton(
+            label: 'RETRY',
+            onPressed: onRetry,
+            color: AppColors.btnRed,
+            textColor: AppColors.shellLight,
+            fullWidth: true,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppSurface.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _MonoNavStrip(),
-        const Spacer(),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'NO QUIZZES\nAVAILABLE.',
-            style: GoogleFonts.bricolageGrotesque(
-              fontSize: 48,
-              fontWeight: FontWeight.w800,
-              height: AppColors.displayLeading,
-              color: s.guide,
-            ),
-          ),
-        ),
-        const Spacer(),
-      ],
+        ],
+      ),
     );
   }
 }
