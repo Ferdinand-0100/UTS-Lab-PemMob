@@ -86,7 +86,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.shell,
+      backgroundColor: AppShell.of(context).body,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -258,11 +258,12 @@ class _ConsoleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          bottom: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -274,7 +275,7 @@ class _ConsoleHeader extends StatelessWidget {
             height: 10,
             decoration: BoxDecoration(
               color: AppColors.phosphor,
-              border: Border.all(color: AppColors.outline, width: 1),
+              border: Border.all(color: sh.border, width: 1),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
@@ -286,13 +287,23 @@ class _ConsoleHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: ShellText(
+            child: Text(
               'QUIZ MASTER  //  ${isRegister ? 'REGISTER' : 'SIGN IN'}',
-              fontSize: 8,
-              color: AppColors.shellLight,
+              style: GoogleFonts.silkscreen(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                color: sh.onShell,
+              ),
             ),
           ),
-          ShellText('v1.0', fontSize: 7, color: AppColors.shellDark.withValues(alpha: 0.6)),
+          Text(
+            'V1.0',
+            style: GoogleFonts.silkscreen(
+              fontSize: 7,
+              color: sh.strip.withValues(alpha: 0.5),
+            ),
+          ),
         ],
       ),
     );
@@ -416,18 +427,25 @@ class _LoadingButton extends StatelessWidget {
 class _ShellFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          top: BorderSide(color: AppColors.outline, width: AppColors.borderRule),
+          top: BorderSide(color: sh.border, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ShellText('MADE BY FERDINAND  //  NIM 241401080', fontSize: 6, color: AppColors.shell),
+          Text(
+            'MADE BY FERDINAND  //  NIM 241401080',
+            style: GoogleFonts.silkscreen(
+              fontSize: 6,
+              color: sh.body.withValues(alpha: 0.5),
+            ),
+          ),
         ],
       ),
     );

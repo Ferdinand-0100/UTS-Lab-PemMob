@@ -414,11 +414,12 @@ class AppTopStrip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          bottom: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -434,7 +435,7 @@ class AppTopStrip extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.btnBlue,
-                  border: Border.all(color: AppColors.outline, width: AppColors.borderRule),
+                  border: Border.all(color: sh.border, width: AppColors.borderRule),
                   boxShadow: const [
                     BoxShadow(
                       color: AppColors.btnBlueSel,
@@ -443,17 +444,28 @@ class AppTopStrip extends ConsumerWidget {
                     ),
                   ],
                 ),
-                child: ShellText(backLabel, fontSize: 8, color: AppColors.shellLight),
+                child: Text(
+                  backLabel.toUpperCase(),
+                  style: GoogleFonts.silkscreen(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: AppColors.shellLight,
+                  ),
+                ),
               ),
             ),
           if (title != null) ...[
             if (onBack != null) const SizedBox(width: 10),
             Expanded(
-              child: ShellText(
-                title!,
-                fontSize: 9,
-                color: AppColors.shellLight,
-                letterSpacing: 2.0,
+              child: Text(
+                title!.toUpperCase(),
+                style: GoogleFonts.silkscreen(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.0,
+                  color: sh.onShell,
+                ),
               ),
             ),
           ] else
@@ -940,16 +952,16 @@ class ShellPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.shell,
+        color: sh.body,
         border: border,
       ),
       padding: padding,
       child: Stack(
         children: [
           child,
-          // Subtle dot-matrix texture overlay
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(painter: _ShellTexturePainter()),

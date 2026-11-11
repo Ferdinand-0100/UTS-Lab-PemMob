@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,6 +19,11 @@ class QuizPlayPage extends ConsumerStatefulWidget {
 }
 
 class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
+  /// Index of the question that has been answered, or -1 if none yet.
+  /// Using an index instead of a plain bool means it resets automatically
+  /// when the question index advances to a new value.
+  int _answeredIndex = -1;
+
   @override
   void initState() {
     super.initState();
@@ -65,7 +70,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     if (playState is QuizPlayError) {
       return Scaffold(
-        backgroundColor: AppColors.shell,
+        backgroundColor: AppShell.of(context).body,
         body: SafeArea(
           child: Column(
             children: [
@@ -108,7 +113,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     if (playState is QuizPlayLoading) {
       return Scaffold(
-        backgroundColor: AppColors.shell,
+        backgroundColor: AppShell.of(context).body,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -125,7 +130,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
         context.replace(AppRouter.quizResultPath(widget.quizId));
       });
       return Scaffold(
-        backgroundColor: AppColors.shell,
+        backgroundColor: AppShell.of(context).body,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -155,22 +160,22 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.shell,
+        backgroundColor: AppShell.of(context).body,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Shell top strip ──────────────────────────────────
+              // -- Shell top strip ----------------------------------
               _QuizTopStrip(
                 title: active.quiz.title,
                 current: currentQ,
                 total: total,
               ),
 
-              // ── Segmented progress bar ───────────────────────────
+              // -- Segmented progress bar ---------------------------
               PixelProgressBar(current: currentQ, total: total),
 
-              // ── Timer strip on shell ─────────────────────────────
+              // -- Timer strip on shell -----------------------------
               _TimerStrip(
                 secondsLeft: active.timeLeft,
                 total: AppConstants.defaultQuestionTimeSeconds,
@@ -178,7 +183,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                 isCritical: isCritical,
               ),
 
-              // ── CRT question screen ──────────────────────────────
+              // -- CRT question screen ------------------------------
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
@@ -227,6 +232,9 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                                   .map((e) => _OptionButton(
                                         index: e.key,
                                         text: e.value,
+                                        locked: _answeredIndex == active.currentIndex,
+                                        onAnswered: () => setState(
+                                            () => _answeredIndex = active.currentIndex),
                                         onTap: () => ref
                                             .read(quizPlayNotifierProvider.notifier)
                                             .answer(e.key),
@@ -241,7 +249,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                 ),
               ),
 
-              // ── Bottom shell spacer ──────────────────────────────
+              // -- Bottom shell spacer ------------------------------
               const _BottomShell(),
             ],
           ),
@@ -251,7 +259,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
   }
 }
 
-// ── Quiz top strip ─────────────────────────────────────────────────
+// -- Quiz top strip -------------------------------------------------
 
 class _QuizTopStrip extends StatelessWidget {
   const _QuizTopStrip({
@@ -265,21 +273,26 @@ class _QuizTopStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          bottom: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           Expanded(
-            child: ShellText(
+            child: Text(
               title.toUpperCase(),
-              fontSize: 8,
-              color: AppColors.shellLight,
+              style: GoogleFonts.silkscreen(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                color: sh.onShell,
+              ),
             ),
           ),
           Container(
@@ -300,7 +313,7 @@ class _QuizTopStrip extends StatelessWidget {
   }
 }
 
-// ── Timer strip ────────────────────────────────────────────────────
+// -- Timer strip ----------------------------------------------------
 
 class _TimerStrip extends StatelessWidget {
   const _TimerStrip({
@@ -316,6 +329,7 @@ class _TimerStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     final Color timerColor = isCritical
         ? AppColors.btnRed
         : isLow
@@ -324,15 +338,23 @@ class _TimerStrip extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.shellDark,
-        border: const Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderRule),
+        color: sh.strip,
+        border: Border(
+          bottom: BorderSide(color: sh.border, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          ShellText('TIME', fontSize: 7, color: AppColors.shell),
+          Text(
+            'TIME',
+            style: GoogleFonts.silkscreen(
+              fontSize: 7,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: sh.body,
+            ),
+          ),
           const SizedBox(width: 10),
           // Digital readout
           Container(
@@ -379,7 +401,7 @@ class _TimerStrip extends StatelessWidget {
   }
 }
 
-// ── Option button ──────────────────────────────────────────────────
+// -- Option button --------------------------------------------------
 // Shows a 280ms flash in the button's accent color when tapped,
 // then calls onTap to advance. Gives micro-feedback before the
 // next question appears.
@@ -389,10 +411,14 @@ class _OptionButton extends ConsumerStatefulWidget {
     required this.index,
     required this.text,
     required this.onTap,
+    required this.locked,
+    required this.onAnswered,
   });
   final int index;
   final String text;
   final VoidCallback onTap;
+  final bool locked;
+  final VoidCallback onAnswered;
 
   @override
   ConsumerState<_OptionButton> createState() => _OptionButtonState();
@@ -414,7 +440,8 @@ class _OptionButtonState extends ConsumerState<_OptionButton> {
   Color get _accent => _colors[widget.index % _colors.length];
 
   Future<void> _handleTap() async {
-    if (_flashing) return;
+    if (_flashing || widget.locked) return;
+    widget.onAnswered(); // lock all other buttons immediately
     setState(() => _flashing = true);
 
     // Pause the countdown while the answer flash is showing.
@@ -428,7 +455,7 @@ class _OptionButtonState extends ConsumerState<_OptionButton> {
 
     if (mounted) {
       setState(() => _flashing = false);
-      // Resume isn't needed here — answer() cancels the timer and either
+      // Resume isn't needed here � answer() cancels the timer and either
       // starts a fresh one for the next question or marks complete.
       widget.onTap();
     }
@@ -446,7 +473,7 @@ class _OptionButtonState extends ConsumerState<_OptionButton> {
         label: '$_letter. ${widget.text}',
         child: GestureDetector(
           onTap: _handleTap,
-          onTapDown: (_) => setState(() => _pressed = true),
+          onTapDown: (_) { if (!widget.locked) setState(() => _pressed = true); },
           onTapUp: (_) => setState(() => _pressed = false),
           onTapCancel: () => setState(() => _pressed = false),
           child: AnimatedContainer(
@@ -526,25 +553,34 @@ class _OptionButtonState extends ConsumerState<_OptionButton> {
   }
 }
 
-// ── Bottom shell ───────────────────────────────────────────────────
+// -- Bottom shell ---------------------------------------------------
 
 class _BottomShell extends StatelessWidget {
   const _BottomShell();
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
       height: 48,
-      decoration: const BoxDecoration(
-        color: AppColors.shell,
+      decoration: BoxDecoration(
+        color: sh.body,
         border: Border(
-          top: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          top: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ShellText('TAP AN ANSWER TO CONTINUE', fontSize: 6, color: AppColors.shellDark),
+          Text(
+            'TAP AN ANSWER TO CONTINUE',
+            style: GoogleFonts.silkscreen(
+              fontSize: 6,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: sh.strip,
+            ),
+          ),
         ],
       ),
     );

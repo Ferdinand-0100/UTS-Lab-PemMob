@@ -94,10 +94,24 @@ class AppTheme {
     );
   }
 
-  // ── Light theme = shell / play field ─────────────────────────────
-  static ThemeData get light {
-    const colorScheme = ColorScheme(
-      brightness:           Brightness.light,
+  // ── Light theme = warm beige Game Boy shell ──────────────────────
+  static ThemeData get light => _build(
+        scaffoldBg:  AppColors.shell,
+        brightness:  Brightness.light,
+      );
+
+  // ── Dark theme = midnight black console shell ─────────────────────
+  static ThemeData get dark => _build(
+        scaffoldBg:  AppColors.shellNight,
+        brightness:  Brightness.dark,
+      );
+
+  static ThemeData _build({
+    required Color scaffoldBg,
+    required Brightness brightness,
+  }) {
+    final colorScheme = ColorScheme(
+      brightness:           brightness,
       primary:              AppColors.btnMagenta,
       onPrimary:            AppColors.shellLight,
       primaryContainer:     AppColors.crtBg,
@@ -110,21 +124,23 @@ class AppTheme {
       onTertiary:           AppColors.shellLight,
       error:                AppColors.btnRed,
       onError:              AppColors.shellLight,
-      surface:              AppColors.crtBg,       // screens are always CRT
-      onSurface:            AppColors.phosphor,    // text on screen = phosphor
+      surface:              AppColors.crtBg,
+      onSurface:            AppColors.phosphor,
       outline:              AppColors.outline,
       outlineVariant:       AppColors.phosphorDim,
     );
 
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.shell,   // body bg = plastic shell
+      scaffoldBackgroundColor: scaffoldBg,
       textTheme: _buildTextTheme(AppColors.phosphor),
 
-      // AppBar = shell strip with hard bottom border
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.shellDark,
+        backgroundColor: brightness == Brightness.dark
+            ? AppColors.shellNightDark
+            : AppColors.shellDark,
         foregroundColor: AppColors.shellLight,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -133,7 +149,6 @@ class AppTheme {
         shape: Border.all(color: AppColors.outline, width: AppColors.borderRule),
       ),
 
-      // Primary (magenta) filled button
       filledButtonTheme: FilledButtonThemeData(
         style: _consoleButtonStyle(
           bg: AppColors.btnMagenta,
@@ -142,7 +157,6 @@ class AppTheme {
         ),
       ),
 
-      // Outlined = blue console button
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: _consoleButtonStyle(
           bg: AppColors.btnBlue,
@@ -224,7 +238,4 @@ class AppTheme {
       ),
     );
   }
-
-  // ── Dark theme — identical palette (CRT is always dark) ───────────
-  static ThemeData get dark => light;
 }

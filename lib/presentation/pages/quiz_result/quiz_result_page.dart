@@ -2,8 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:quiz_app/core/theme/app_colors.dart';
-import 'package:quiz_app/domain/entities/question.dart';
+import 'package:quiz_app/core/theme/app_colors.dart';import 'package:quiz_app/domain/entities/question.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/providers/score_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
@@ -28,7 +27,7 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => context.go(AppRouter.home));
       return Scaffold(
-        backgroundColor: AppColors.shell,
+        backgroundColor: AppShell.of(context).body,
         body: Padding(
           padding: const EdgeInsets.all(12),
           child: const AppLoadingView(),
@@ -62,7 +61,7 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
         scoreResult.totalCount - scoreResult.correctCount - unansweredCount;
 
     return Scaffold(
-      backgroundColor: AppColors.shell,
+      backgroundColor: AppShell.of(context).body,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,18 +154,27 @@ class _ResultTopStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          bottom: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           Expanded(
-            child: ShellText(title.toUpperCase(), fontSize: 8, color: AppColors.shellLight),
+            child: Text(
+              title.toUpperCase(),
+              style: GoogleFonts.silkscreen(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                color: sh.onShell,
+              ),
+            ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -481,6 +489,36 @@ class _BreakdownItem extends StatelessWidget {
                 ),
               ),
             ],
+            if (question.explanation != null &&
+                question.explanation!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                height: 1,
+                color: AppColors.phosphorDim.withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'WHY  ',
+                    style: GoogleFonts.silkscreen(
+                      fontSize: 7,
+                      color: AppColors.btnYellow,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  Expanded(
+                    child: PhosphorText(
+                      question.explanation!,
+                      fontSize: 8,
+                      dim: true,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -496,11 +534,12 @@ class _BottomActionStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shell,
+      decoration: BoxDecoration(
+        color: sh.body,
         border: Border(
-          top: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          top: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

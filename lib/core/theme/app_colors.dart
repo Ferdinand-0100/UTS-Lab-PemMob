@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 
 /// CRT Console Design token set.
 ///
-/// The app is themed as a chunky retro handheld console.
-/// Every surface is either the plastic shell or the inset CRT screen.
-/// Accents are arcade-bright button colors.
-/// Text on screens uses phosphor green only.
+/// Two shell modes:
+///   Light (day) — warm beige Game Boy plastic
+///   Dark (night) — near-black midnight console
+///
+/// The CRT screen itself never changes (always dark teal + phosphor green).
 abstract final class AppColors {
-  // ── Plastic shell ────────────────────────────────────────────────
+  // ── Light shell ───────────────────────────────────────────────────
   static const Color shell       = Color(0xFFC8C2B0); // warm console plastic
   static const Color shellDark   = Color(0xFF8E8878); // panel lips, bevels
   static const Color shellLight  = Color(0xFFE6E1D2); // top highlights
   static const Color outline     = Color(0xFF14161F); // all hard outlines
 
-  // ── CRT screen ───────────────────────────────────────────────────
+  // ── Dark shell (midnight console) ────────────────────────────────
+  static const Color shellNight      = Color(0xFF1C1C1E); // near-black body
+  static const Color shellNightDark  = Color(0xFF111113); // lips, deeper recesses
+  static const Color shellNightLight = Color(0xFF2C2C2E); // raised surfaces
+  static const Color outlineNight    = Color(0xFF3A3A3C); // softer outline on dark
+
+  // ── CRT screen (identical in both modes) ─────────────────────────
   static const Color crtBg       = Color(0xFF0F2F3A); // dark teal screen
   static const Color crtBgDeep   = Color(0xFF0A1F27); // deeper shadow
   static const Color phosphor    = Color(0xFF7CE38B); // screen text / bubble
@@ -27,34 +34,27 @@ abstract final class AppColors {
   static const Color btnYellow   = Color(0xFFEDB93B); // pause
   static const Color btnRed      = Color(0xFFE5472A); // stop / alarm
 
-  // ── Legacy aliases kept for accent slabs that never change ───────
-  /// Always-light accent (maps to acid yellow-green → use shell highlight)
-  static const Color acid        = Color(0xFF7CE38B); // phosphor green stands in
+  // ── Legacy aliases ────────────────────────────────────────────────
+  static const Color acid        = Color(0xFF7CE38B);
   static const Color alarm       = btnRed;
-  static const Color bubblegum   = Color(0xFF3F8F55); // phosphorDim as a muted accent
+  static const Color bubblegum   = Color(0xFF3F8F55);
   static const Color volt        = btnBlue;
-
-  // ── Constant surface aliases (always-dark text on always-light bg) ─
   static const Color paper       = shellLight;
   static const Color ink         = outline;
   static const Color grid        = shellDark;
-
-  // ── Dark surface aliases ─────────────────────────────────────────
   static const Color paperDark   = crtBgDeep;
   static const Color inkDark     = phosphor;
   static const Color gridDark    = phosphorDim;
 
-  // ── Spacing tokens (logical pixels) ──────────────────────────────
-  static const double nudge         = 12.0;
-  static const double gapTight      = 8.0;
-  static const double gapWide       = 96.0;
+  // ── Spacing tokens ────────────────────────────────────────────────
+  static const double nudge          = 12.0;
+  static const double gapTight       = 8.0;
+  static const double gapWide        = 96.0;
   static const double gapWideCompact = 64.0;
+  static const double px             = 4.0;
 
-  // ── px unit — base pixel grid unit (all borders/lips/shadows use multiples)
-  static const double px            = 4.0;
-
-  // ── Typography scale tokens ───────────────────────────────────────
-  static const double bodySize       = 11.0;  // pixel font reads small
+  // ── Typography scale ──────────────────────────────────────────────
+  static const double bodySize       = 11.0;
   static const double supportingSize = 10.0;
   static const double labelSize      = 9.0;
   static const double displayMin     = 20.0;
@@ -63,35 +63,85 @@ abstract final class AppColors {
   static const double bodyLeading    = 1.6;
 
   // ── Border tokens ─────────────────────────────────────────────────
-  static const double borderFrame = 3.0;  // chunky 3px border
-  static const double borderRule  = 2.0;  // standard border (2px min on console)
+  static const double borderFrame = 3.0;
+  static const double borderRule  = 2.0;
 
-  // ── Button depth shadow (solid, not blurred) ──────────────────────
-  static const double btnDepth    = 5.0;  // how many px the button "sticks out"
+  // ── Button depth shadow ───────────────────────────────────────────
+  static const double btnDepth = 5.0;
 
   // ── Angle tokens (radians) ────────────────────────────────────────
-  static const double angleNote  =  0.0349; //  2 deg
-  static const double angleStamp = -0.0873; // -5 deg
+  static const double angleNote  =  0.0349;
+  static const double angleStamp = -0.0873;
 
   // ── Sticker tokens ────────────────────────────────────────────────
   static const double stickerSize        = 72.0;
   static const double stickerSizeCompact = 52.0;
 }
 
-// ── compile-time alias for always-light text on accent slabs ─────────────
+// ── Compile-time alias for text on accent slabs (always light) ───────────
 abstract final class c {
   static const Color paper = AppColors.shellLight;
   static const Color ink   = AppColors.outline;
   static const Color grid  = AppColors.shellDark;
 }
 
-/// Theme-aware surface resolver.
+/// Theme-aware shell color resolver.
 ///
-/// In this console theme we only have ONE visual mode — the CRT screen
-/// is always dark teal with phosphor green text.  The "light" scaffold
-/// is the plastic shell; the "screen" is always CRT-dark.
-///
-/// Usage: `final s = AppSurface.of(context);`
+/// Shell surfaces (nav strip, control deck, top strip) change between
+/// light (beige) and dark (near-black) modes.
+/// CRT screen surfaces are always the same regardless of mode.
+class AppShell {
+  const AppShell._({
+    required this.body,
+    required this.strip,
+    required this.highlight,
+    required this.border,
+    required this.onShell,
+    required this.isDark,
+  });
+
+  /// Main scaffold / body background color.
+  final Color body;
+
+  /// Darker strip used for nav bars and top strips.
+  final Color strip;
+
+  /// Lighter raised surface color.
+  final Color highlight;
+
+  /// Border/outline color on shell elements.
+  final Color border;
+
+  /// Text color on the shell surface.
+  final Color onShell;
+
+  final bool isDark;
+
+  static AppShell of(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return dark ? _night : _day;
+  }
+
+  static const _day = AppShell._(
+    body:      AppColors.shell,
+    strip:     AppColors.shellDark,
+    highlight: AppColors.shellLight,
+    border:    AppColors.outline,
+    onShell:   AppColors.shellLight,
+    isDark:    false,
+  );
+
+  static const _night = AppShell._(
+    body:      AppColors.shellNight,
+    strip:     AppColors.shellNightDark,
+    highlight: AppColors.shellNightLight,
+    border:    AppColors.outlineNight,
+    onShell:   AppColors.shellLight,
+    isDark:    true,
+  );
+}
+
+/// CRT screen surface — same in both modes.
 class AppSurface {
   const AppSurface._({
     required this.surface,
@@ -104,7 +154,6 @@ class AppSurface {
   final Color guide;
 
   static AppSurface of(BuildContext context) {
-    // We always use CRT-dark for screens; scaffold bg is handled via Scaffold.
     return const AppSurface._(
       surface:   AppColors.crtBg,
       onSurface: AppColors.phosphor,

@@ -7,6 +7,7 @@ import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/quiz.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
+import 'package:quiz_app/presentation/providers/theme_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
 import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
@@ -38,7 +39,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isAdmin = user?.isAdmin ?? false;
 
     return Scaffold(
-      backgroundColor: AppColors.shell,
+      backgroundColor: AppShell.of(context).body,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,52 +91,76 @@ class _NavStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final displayName = user?.displayName ?? '';
+    final sh = AppShell.of(context);
+    final isDark = sh.isDark;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.shellDark,
+      decoration: BoxDecoration(
+        color: sh.strip,
         border: Border(
-          bottom: BorderSide(color: AppColors.outline, width: AppColors.borderFrame),
+          bottom: BorderSide(color: sh.border, width: AppColors.borderFrame),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          // Power LED
+          // Power LED — green in light, amber in dark
           Container(
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: AppColors.phosphor,
+              color: isDark ? AppColors.btnYellow : AppColors.phosphor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.outline, width: 1),
+              border: Border.all(color: sh.border, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.phosphor.withValues(alpha: 0.7),
+                  color: (isDark ? AppColors.btnYellow : AppColors.phosphor)
+                      .withValues(alpha: 0.7),
                   blurRadius: 6,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          ShellText('QUIZ MASTER', fontSize: 9, color: AppColors.shellLight),
+          Text(
+            'QUIZ MASTER',
+            style: GoogleFonts.silkscreen(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: sh.onShell,
+            ),
+          ),
           if (isAdmin) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               color: AppColors.btnRed,
-              child: ShellText('ADMIN', fontSize: 6, color: AppColors.shellLight),
+              child: Text(
+                'ADMIN',
+                style: GoogleFonts.silkscreen(
+                  fontSize: 6,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.shellLight,
+                ),
+              ),
             ),
           ],
           const Spacer(),
           if (displayName.isNotEmpty) ...[
-            ShellText(
+            Text(
               displayName.toUpperCase(),
-              fontSize: 7,
-              color: AppColors.shell,
+              style: GoogleFonts.silkscreen(
+                fontSize: 7,
+                color: sh.onShell.withValues(alpha: 0.6),
+                letterSpacing: 1.0,
+              ),
             ),
             const SizedBox(width: 8),
           ],
+          // ── Dark / Light mode toggle ───────────────────────────
+          _ThemeToggle(),
+          const SizedBox(width: 6),
           if (!isAdmin) ...[
             _ShellIconBtn(
               label: 'FRIENDS',
@@ -158,6 +183,72 @@ class _NavStrip extends ConsumerWidget {
   }
 }
 
+// ── Theme toggle button ────────────────────────────────────────────
+
+class _ThemeToggle extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_ThemeToggle> createState() => _ThemeToggleState();
+}
+
+class _ThemeToggleState extends ConsumerState<_ThemeToggle> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppShell.of(context).isDark;
+    final sh = AppShell.of(context);
+    // Sun icon in light mode, moon icon in dark mode
+    final icon = isDark ? '☀' : '☾';
+    final btnColor = isDark ? AppColors.shellNightLight : AppColors.shellDark;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        ref.read(soundServiceProvider).playClick();
+        final current = ref.read(themeModeProvider);
+        ref.read(themeModeProvider.notifier).state =
+            current == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        transform: _pressed
+            ? (Matrix4.identity()..translate(0.0, 2.0))
+            : Matrix4.identity(),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (!_pressed)
+              Positioned(
+                left: 0, right: 0, bottom: -3,
+                child: Container(
+                  height: 3,
+                  color: sh.strip,
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: btnColor,
+                border: Border.all(color: sh.border, width: AppColors.borderRule),
+              ),
+              child: Text(
+                icon,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? AppColors.btnYellow : AppColors.shellLight,
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ShellIconBtn extends ConsumerWidget {
   const _ShellIconBtn({
     required this.label,
@@ -170,16 +261,26 @@ class _ShellIconBtn extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sh = AppShell.of(context);
+    // Scale padding and font with screen width:
+    //   ≤ 360px → compact   (px: 6×3, font: 6)
+    //   360–480px → default (px: 8×4, font: 7)
+    //   > 480px → relaxed   (px: 12×6, font: 8)
+    final screenW = MediaQuery.sizeOf(context).width;
+    final double hPad = screenW <= 360 ? 6 : screenW <= 480 ? 8 : 12;
+    final double vPad = screenW <= 360 ? 3 : screenW <= 480 ? 4 : 6;
+    final double fontSize = screenW <= 360 ? 6 : screenW <= 480 ? 7 : 8;
+
     return GestureDetector(
       onTap: () {
         ref.read(soundServiceProvider).playClick();
         onTap();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         decoration: BoxDecoration(
           color: color,
-          border: Border.all(color: AppColors.outline, width: AppColors.borderRule),
+          border: Border.all(color: sh.border, width: AppColors.borderRule),
           boxShadow: [
             BoxShadow(
               color: Color.fromARGB(
@@ -193,7 +294,15 @@ class _ShellIconBtn extends ConsumerWidget {
             ),
           ],
         ),
-        child: ShellText(label, fontSize: 7, color: AppColors.shellLight),
+        child: Text(
+          label.toUpperCase(),
+          style: GoogleFonts.silkscreen(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: AppColors.shellLight,
+          ),
+        ),
       ),
     );
   }
@@ -516,11 +625,17 @@ class _ControlDeck extends ConsumerWidget {
                   ],
                 ),
               const SizedBox(height: 8),
-              ShellText(
-                isAdmin ? 'ADMIN MODE' : 'QUIZ MASTER',
-                fontSize: 6,
-                color: AppColors.shellDark,
-              ),
+              Builder(builder: (ctx) {
+                final sh = AppShell.of(ctx);
+                return Text(
+                  isAdmin ? 'ADMIN MODE' : 'QUIZ MASTER',
+                  style: GoogleFonts.silkscreen(
+                    fontSize: 6,
+                    color: sh.strip,
+                    letterSpacing: 1.0,
+                  ),
+                );
+              }),
             ],
           ),
 
@@ -594,16 +709,13 @@ class _DPad extends StatelessWidget {
           Positioned(
             left: arm, right: arm, top: arm, bottom: arm,
             child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.outline,
-                border: Border.all(color: AppColors.outline, width: 1),
-              ),
+              color: AppColors.outline,
               child: Center(
                 child: Container(
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: AppColors.shellDark,
+                    color: const Color(0xFF3A3A3A),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -616,30 +728,26 @@ class _DPad extends StatelessWidget {
               ),
             ),
           ),
-          // Arrow indicators (small triangles as text)
+          // Arrow indicators — themed to blend with shell surface
           Positioned(
             top: 3, left: 0, right: 0,
-            child: Center(
-              child: Text('▲', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
-            ),
+            child: Center(child: Builder(builder: (ctx) => Text(
+              '▲', style: TextStyle(fontSize: 7, color: AppShell.of(ctx).strip, height: 1)))),
           ),
           Positioned(
             bottom: 3, left: 0, right: 0,
-            child: Center(
-              child: Text('▼', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
-            ),
+            child: Center(child: Builder(builder: (ctx) => Text(
+              '▼', style: TextStyle(fontSize: 7, color: AppShell.of(ctx).strip, height: 1)))),
           ),
           Positioned(
             left: 3, top: 0, bottom: 0,
-            child: Center(
-              child: Text('◀', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
-            ),
+            child: Center(child: Builder(builder: (ctx) => Text(
+              '◀', style: TextStyle(fontSize: 7, color: AppShell.of(ctx).strip, height: 1)))),
           ),
           Positioned(
             right: 3, top: 0, bottom: 0,
-            child: Center(
-              child: Text('▶', style: TextStyle(fontSize: 7, color: AppColors.shellDark, height: 1)),
-            ),
+            child: Center(child: Builder(builder: (ctx) => Text(
+              '▶', style: TextStyle(fontSize: 7, color: AppShell.of(ctx).strip, height: 1)))),
           ),
         ],
       ),
@@ -817,6 +925,7 @@ class _ActionDotState extends ConsumerState<_ActionDot> {
 class _SpeakerGrille extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final sh = AppShell.of(context);
     return SizedBox(
       width: 20,
       height: 48,
@@ -826,7 +935,7 @@ class _SpeakerGrille extends StatelessWidget {
           return Container(
             width: 2.5,
             decoration: BoxDecoration(
-              color: AppColors.shellDark,
+              color: sh.strip,
               borderRadius: BorderRadius.circular(1),
             ),
           );
