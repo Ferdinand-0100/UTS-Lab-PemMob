@@ -5,14 +5,8 @@ import 'package:quiz_app/core/constants/app_constants.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/app_user.dart';
 import 'package:quiz_app/presentation/providers/auth_provider.dart';
+import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
-/// Authentication page — handles both sign-in and registration.
-///
-/// Anti-Design signature moves active:
-///  (1) Accent-serif italic word in the headline.
-///  (3) Tilted mono stamp on the mode toggle strip.
-///  (5) Hairline crop ticks above the form area.
-///  (6) Gap swing throughout.
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
 
@@ -66,7 +60,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 style: GoogleFonts.spaceMono(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: c.paper,
+                  color: AppColors.paper,
                 ),
               ),
             ),
@@ -92,27 +86,43 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final s = AppSurface.of(context);
 
     return Scaffold(
-      backgroundColor: c.paper,
+      backgroundColor: s.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _NavStrip(isRegister: _isRegister),
-              _HeadlineBlock(isRegister: _isRegister),
-              // gap swing: tight
-              const SizedBox(height: AppColors.gapTight),
-              _ModeToggleStrip(
-                isRegister: _isRegister,
-                onToggle: _toggleMode,
+              AppTopStrip(
+                title: _isRegister ? '02 REGISTER' : '01 SIGN IN',
+                trailing: Text(
+                  'QUIZ MASTER',
+                  style: GoogleFonts.spaceMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.0,
+                    color: s.onSurface,
+                  ),
+                ),
               ),
-              // gap swing: wide
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const AppLogo(size: 64),
+                    const SizedBox(width: 16),
+                    Expanded(child: _HeadlineBlock(isRegister: _isRegister)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppColors.gapTight),
+              _ModeToggleStrip(isRegister: _isRegister, onToggle: _toggleMode),
               const SizedBox(height: AppColors.nudge * 2),
-              _CropTickDivider(),
+              const _CropTickDivider(),
               const SizedBox(height: AppColors.nudge),
-              // Form
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Form(
@@ -121,7 +131,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (_isRegister) ...[
-                        _MonoLabel('DISPLAY NAME'),
+                        const AppMonoLabel('DISPLAY NAME'),
                         const SizedBox(height: AppColors.gapTight),
                         _AuthField(
                           controller: _displayNameCtrl,
@@ -132,7 +142,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         const SizedBox(height: AppColors.nudge),
                       ],
-                      _MonoLabel('EMAIL'),
+                      const AppMonoLabel('EMAIL'),
                       const SizedBox(height: AppColors.gapTight),
                       _AuthField(
                         controller: _emailCtrl,
@@ -145,7 +155,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         },
                       ),
                       const SizedBox(height: AppColors.nudge),
-                      _MonoLabel('PASSWORD'),
+                      const AppMonoLabel('PASSWORD'),
                       const SizedBox(height: AppColors.gapTight),
                       _AuthField(
                         controller: _passwordCtrl,
@@ -156,7 +166,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             _obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
-                            color: c.grid,
+                            color: s.guide,
                           ),
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
@@ -167,7 +177,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           return null;
                         },
                       ),
-                      // Admin section — register mode only
                       if (_isRegister) ...[
                         const SizedBox(height: AppColors.nudge),
                         _AdminToggleRow(
@@ -180,7 +189,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         if (_showAdminCode) ...[
                           const SizedBox(height: AppColors.gapTight),
-                          _MonoLabel('ADMIN CODE'),
+                          const AppMonoLabel('ADMIN CODE'),
                           const SizedBox(height: AppColors.gapTight),
                           _AuthField(
                             controller: _adminCodeCtrl,
@@ -193,32 +202,19 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ],
                       ],
                       const SizedBox(height: AppColors.nudge * 2),
-                      // Error message
                       if (authState.errorMessage != null) ...[
-                        Container(
-                          color: AppColors.alarm,
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            authState.errorMessage!,
-                            style: GoogleFonts.spaceMono(
-                              fontSize: 11,
-                              color: c.paper,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
+                        AppErrorBanner(authState.errorMessage!),
                         const SizedBox(height: AppColors.nudge),
                       ],
-                      // Submit button
                       FilledButton(
                         onPressed: authState.loading ? null : _submit,
                         child: authState.loading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: AppColors.borderFrame,
-                                  color: c.ink,
+                                  color: s.surface,
                                 ),
                               )
                             : Text(_isRegister ? 'REGISTER' : 'SIGN IN'),
@@ -236,49 +232,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 }
 
-// ── Nav strip ──────────────────────────────────────────────────────────────
-
-class _NavStrip extends StatelessWidget {
-  const _NavStrip({required this.isRegister});
-  final bool isRegister;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom:
-              BorderSide(color: c.ink, width: AppColors.borderRule),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Text(
-            'QUIZ MASTER',
-            style: GoogleFonts.spaceMono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2.0,
-              color: c.ink,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            isRegister ? '02 REGISTER' : '01 SIGN IN',
-            style: GoogleFonts.spaceMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: c.ink,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Headline block ─────────────────────────────────────────────────────────
 
 class _HeadlineBlock extends StatelessWidget {
@@ -287,50 +240,44 @@ class _HeadlineBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     final screenW = MediaQuery.sizeOf(context).width;
     final displaySize =
         (screenW / 5.5).clamp(AppColors.displayMin, AppColors.displayMax);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isRegister ? 'CREATE' : 'SIGN',
-            style: GoogleFonts.bricolageGrotesque(
-              fontSize: displaySize,
-              fontWeight: FontWeight.w800,
-              height: AppColors.displayLeading,
-              letterSpacing: -2.0,
-              color: c.ink,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isRegister ? 'CREATE' : 'SIGN',
+          style: GoogleFonts.bricolageGrotesque(
+            fontSize: displaySize,
+            fontWeight: FontWeight.w800,
+            height: AppColors.displayLeading,
+            letterSpacing: -2.0,
+            color: s.onSurface,
           ),
-          // Accent serif italic (signature move 1)
-          Text(
-            isRegister ? 'Account' : 'In',
-            style: GoogleFonts.instrumentSerif(
-              fontSize: displaySize * 0.95,
-              fontStyle: FontStyle.italic,
-              height: AppColors.displayLeading,
-              letterSpacing: -1.5,
-              color: c.ink,
-            ),
+        ),
+        Text(
+          isRegister ? 'Account' : 'In',
+          style: GoogleFonts.instrumentSerif(
+            fontSize: displaySize * 0.95,
+            fontStyle: FontStyle.italic,
+            height: AppColors.displayLeading,
+            letterSpacing: -1.5,
+            color: s.onSurface,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// ── Mode toggle strip (signature move 3) ──────────────────────────────────
+// ── Mode toggle strip ──────────────────────────────────────────────────────
+// Acid slab is always light-colored — text stays AppColors.ink.
 
 class _ModeToggleStrip extends StatelessWidget {
-  const _ModeToggleStrip({
-    required this.isRegister,
-    required this.onToggle,
-  });
-
+  const _ModeToggleStrip({required this.isRegister, required this.onToggle});
   final bool isRegister;
   final VoidCallback onToggle;
 
@@ -342,33 +289,24 @@ class _ModeToggleStrip extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            isRegister
-                ? 'ALREADY HAVE AN ACCOUNT?'
-                : 'NO ACCOUNT YET?',
+            isRegister ? 'ALREADY HAVE AN ACCOUNT?' : 'NO ACCOUNT YET?',
             style: GoogleFonts.spaceMono(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
-              color: c.ink,
+              color: AppColors.ink,
             ),
           ),
           const Spacer(),
-          // Tilted stamp (signature move 3)
           GestureDetector(
             onTap: onToggle,
             child: ExcludeSemantics(
               child: Transform.rotate(
                 angle: AppColors.angleStamp,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: c.ink,
-                      width: AppColors.borderRule,
-                    ),
+                    border: Border.all(color: AppColors.ink, width: AppColors.borderRule),
                   ),
                   child: Text(
                     isRegister ? 'SIGN IN ->' : 'REGISTER ->',
@@ -376,7 +314,7 @@ class _ModeToggleStrip extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
-                      color: c.ink,
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -389,73 +327,51 @@ class _ModeToggleStrip extends StatelessWidget {
   }
 }
 
-// ── Crop tick divider (signature move 5) ──────────────────────────────────
+// ── Crop tick divider ──────────────────────────────────────────────────────
 
 class _CropTickDivider extends StatelessWidget {
+  const _CropTickDivider();
+
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     return ExcludeSemantics(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            _tick(),
-            Expanded(
-              child: Container(
-                height: AppColors.borderRule,
-                color: c.grid,
-              ),
-            ),
-            _tick(),
+            _tick(s.guide),
+            Expanded(child: Container(height: AppColors.borderRule, color: s.guide)),
+            _tick(s.guide),
           ],
         ),
       ),
     );
   }
 
-  Widget _tick() {
-    return SizedBox(
-      width: 8,
-      height: 8,
-      child: CustomPaint(painter: _TickPainter()),
-    );
-  }
+  Widget _tick(Color color) => SizedBox(
+        width: 8,
+        height: 8,
+        child: CustomPaint(painter: _TickPainter(color)),
+      );
 }
 
 class _TickPainter extends CustomPainter {
+  const _TickPainter(this.color);
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = c.grid
+      ..color = color
       ..strokeWidth = AppColors.borderRule
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-        Offset(size.width / 2, 0), Offset(size.width / 2, size.height), paint);
-    canvas.drawLine(
-        Offset(0, size.height / 2), Offset(size.width, size.height / 2), paint);
+    canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), paint);
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ── Mono label ─────────────────────────────────────────────────────────────
-
-class _MonoLabel extends StatelessWidget {
-  const _MonoLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.spaceMono(
-        fontSize: 9,
-        letterSpacing: 2.0,
-        color: c.grid,
-      ),
-    );
-  }
+  bool shouldRepaint(_TickPainter old) => old.color != color;
 }
 
 // ── Auth text field ────────────────────────────────────────────────────────
@@ -479,59 +395,37 @@ class _AuthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
+
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: GoogleFonts.instrumentSans(
-        fontSize: AppColors.bodySize,
-        color: c.ink,
-      ),
+      style: GoogleFonts.instrumentSans(fontSize: AppColors.bodySize, color: s.onSurface),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.instrumentSans(
-          fontSize: AppColors.bodySize,
-          color: c.grid,
-        ),
+        hintStyle: GoogleFonts.instrumentSans(fontSize: AppColors.bodySize, color: s.guide),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: c.paper,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
+        fillColor: s.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(
-            color: c.ink,
-            width: AppColors.borderRule,
-          ),
+          borderSide: BorderSide(color: s.onSurface, width: AppColors.borderRule),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(
-            color: c.ink,
-            width: AppColors.borderFrame,
-          ),
+          borderSide: BorderSide(color: s.onSurface, width: AppColors.borderFrame),
         ),
-        errorBorder: OutlineInputBorder(
+        errorBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(
-            color: AppColors.alarm,
-            width: AppColors.borderRule,
-          ),
+          borderSide: BorderSide(color: AppColors.alarm, width: AppColors.borderRule),
         ),
-        focusedErrorBorder: OutlineInputBorder(
+        focusedErrorBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(
-            color: AppColors.alarm,
-            width: AppColors.borderFrame,
-          ),
+          borderSide: BorderSide(color: AppColors.alarm, width: AppColors.borderFrame),
         ),
-        errorStyle: GoogleFonts.spaceMono(
-          fontSize: 10,
-          color: AppColors.alarm,
-        ),
+        errorStyle: GoogleFonts.spaceMono(fontSize: 10, color: AppColors.alarm),
       ),
       validator: validator,
     );
@@ -541,26 +435,21 @@ class _AuthField extends StatelessWidget {
 // ── Admin toggle row ───────────────────────────────────────────────────────
 
 class _AdminToggleRow extends StatelessWidget {
-  const _AdminToggleRow({
-    required this.value,
-    required this.onChanged,
-  });
-
+  const _AdminToggleRow({required this.value, required this.onChanged});
   final bool value;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
+
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: value ? AppColors.bubblegum : c.paper,
-          border: Border.all(
-            color: c.ink,
-            width: AppColors.borderRule,
-          ),
+          color: value ? AppColors.bubblegum : s.surface,
+          border: Border.all(color: s.onSurface, width: AppColors.borderRule),
         ),
         child: Row(
           children: [
@@ -568,14 +457,11 @@ class _AdminToggleRow extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: value ? c.ink : c.paper,
-                border: Border.all(
-                  color: c.ink,
-                  width: AppColors.borderRule,
-                ),
+                color: value ? s.onSurface : s.surface,
+                border: Border.all(color: s.onSurface, width: AppColors.borderRule),
               ),
               child: value
-                  ? const Icon(Icons.check, size: 14, color: c.paper)
+                  ? Icon(Icons.check, size: 14, color: s.surface)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -585,7 +471,7 @@ class _AdminToggleRow extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: c.ink,
+                color: value ? AppColors.ink : s.onSurface,
               ),
             ),
           ],
@@ -594,4 +480,3 @@ class _AdminToggleRow extends StatelessWidget {
     );
   }
 }
-

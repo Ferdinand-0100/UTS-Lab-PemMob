@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +7,7 @@ import 'package:quiz_app/domain/entities/question.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/providers/score_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
+import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
 /// Quiz result page in Anti-Design style.
 ///
@@ -44,18 +45,9 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
     if (playState is! QuizPlayActive) {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => context.go(AppRouter.home));
-      return const Scaffold(
-        backgroundColor: c.paper,
-        body: Center(
-          child: SizedBox(
-            width: 32,
-            height: 32,
-            child: CircularProgressIndicator(
-              strokeWidth: AppColors.borderFrame,
-              color: c.ink,
-            ),
-          ),
-        ),
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const AppLoadingView(),
       );
     }
 
@@ -78,9 +70,11 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
       });
     }
 
+    final s = AppSurface.of(context);
     final passed = scoreResult.passed;
     final slabColor = passed ? AppColors.acid : AppColors.alarm;
-    final slabTextColor = passed ? c.ink : c.paper;
+    // Acid slab = always light (use ink). Alarm slab = always has paper text.
+    final slabTextColor = passed ? AppColors.ink : AppColors.paper;
     final percentStr = '${scoreResult.percent.toStringAsFixed(0)}%';
 
     final unansweredCount =
@@ -89,12 +83,23 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
         scoreResult.totalCount - scoreResult.correctCount - unansweredCount;
 
     return Scaffold(
-      backgroundColor: c.paper,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _TopStrip(title: quiz.title),
+            // ── Shared top strip ──────────────────────────────────────
+            AppTopStrip(
+              title: quiz.title.toUpperCase(),
+              trailing: Text(
+                'RESULTS',
+                style: GoogleFonts.spaceMono(
+                  fontSize: 11,
+                  letterSpacing: 2.0,
+                  color: s.guide,
+                ),
+              ),
+            ),
             // gap swing: tight between strip and score slab
             _ScoreSlab(
               slabColor: slabColor,
@@ -112,7 +117,7 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
               total: scoreResult.totalCount,
             ),
             // gap swing: wide before section label
-            const _SectionLabel(label: 'BREAKDOWN'),
+            const _BreakdownHeader(),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -149,71 +154,6 @@ class _QuizResultPageState extends ConsumerState<QuizResultPage> {
   }
 }
 
-// ── Top strip ──────────────────────────────────────────────────────────────
-
-class _TopStrip extends StatelessWidget {
-  const _TopStrip({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    // Signature move 4: decorative "RESULT" echo clipped off right edge.
-    return Stack(
-      clipBehavior: Clip.hardEdge,
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom:
-                  BorderSide(color: c.ink, width: AppColors.borderRule),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Text(
-                title.toUpperCase(),
-                style: GoogleFonts.spaceMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  color: c.ink,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'RESULTS',
-                style: GoogleFonts.spaceMono(
-                  fontSize: 11,
-                  letterSpacing: 2.0,
-                  color: c.grid,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Echo — decorative, hidden from AT
-        Positioned(
-          right: -28,
-          top: 2,
-          child: ExcludeSemantics(
-            child: Text(
-              'RESULT',
-              style: GoogleFonts.bricolageGrotesque(
-                fontSize: 36,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1.0,
-                height: 1.0,
-                color: c.grid.withValues(alpha: 0.22),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ── Score slab ─────────────────────────────────────────────────────────────
 
 class _ScoreSlab extends StatelessWidget {
@@ -235,6 +175,7 @@ class _ScoreSlab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     final screenW = MediaQuery.sizeOf(context).width;
     final displaySize =
         (screenW / 4.5).clamp(AppColors.displayMin, AppColors.displayMax);
@@ -293,7 +234,7 @@ class _ScoreSlab extends StatelessWidget {
               height: AppColors.stickerSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: c.paper,
+                color: s.surface,
                 border: Border.all(
                   color: slabTextColor,
                   width: AppColors.borderFrame,
@@ -309,7 +250,7 @@ class _ScoreSlab extends StatelessWidget {
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
                       height: 1.0,
-                      color: c.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
@@ -318,7 +259,7 @@ class _ScoreSlab extends StatelessWidget {
                       fontSize: 8,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
-                      color: c.ink,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -398,12 +339,12 @@ class _ScoreBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (total == 0) return const SizedBox.shrink();
 
+    final s = AppSurface.of(context);
     return Semantics(
       label: '$correct correct, $wrong wrong, $unanswered unanswered '
           'out of $total questions.',
       child: Container(
-        color: c.paper,
-        // gap swing: wide top, tight bottom
+        color: s.surface,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,7 +401,7 @@ class _ScoreBar extends StatelessWidget {
             ),
             // gap swing: wide before hairline
             const SizedBox(height: 16),
-            Container(height: AppColors.borderRule, color: c.ink),
+            Container(height: AppColors.borderRule, color: s.onSurface),
           ],
         ),
       ),
@@ -509,7 +450,7 @@ class _BarLegendItem extends StatelessWidget {
             fontSize: 9,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.0,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -517,30 +458,30 @@ class _BarLegendItem extends StatelessWidget {
   }
 }
 
-// ── Section label ──────────────────────────────────────────────────────────
+// ── Breakdown header (result-page specific: bottom border + crop tick) ────
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
+class _BreakdownHeader extends StatelessWidget {
+  const _BreakdownHeader();
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: c.paper,
+      decoration: BoxDecoration(
+        color: s.surface,
         border: Border(
-          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
+          bottom: BorderSide(color: s.onSurface, width: AppColors.borderRule),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           Text(
-            label,
+            'BREAKDOWN',
             style: GoogleFonts.spaceMono(
               fontSize: 9,
               letterSpacing: 3.0,
-              color: c.grid,
+              color: s.guide,
             ),
           ),
           const SizedBox(width: 12),
@@ -548,9 +489,9 @@ class _SectionLabel extends StatelessWidget {
           ExcludeSemantics(
             child: Row(
               children: [
-                Container(width: 16, height: AppColors.borderRule, color: c.grid),
+                Container(width: 16, height: AppColors.borderRule, color: s.guide),
                 const SizedBox(width: 3),
-                Container(width: 4, height: 4, color: c.grid),
+                Container(width: 4, height: 4, color: s.guide),
               ],
             ),
           ),
@@ -619,7 +560,7 @@ class _BreakdownItem extends StatelessWidget {
           decoration: BoxDecoration(
             color: bgColor,
             border: Border.all(
-              color: c.ink,
+              color: Theme.of(context).colorScheme.onSurface,
               width: AppColors.borderRule,
             ),
           ),

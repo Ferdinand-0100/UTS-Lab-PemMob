@@ -208,49 +208,155 @@ class AppTheme {
       ),
     );
   }
-  // ── Dark theme ───────────────────────────────────────────────
+  // ── Dark theme ────────────────────────────────────────────────────
   static ThemeData get dark {
-    final lightTheme = light;
+    const surface   = AppColors.paperDark;  // #111111
+    const onSurface = AppColors.inkDark;    // #F0EFE8
+    const guide     = AppColors.gridDark;   // #4A4A44
 
-    return lightTheme.copyWith(
+    const colorScheme = ColorScheme(
       brightness: Brightness.dark,
+      primary:              onSurface,
+      onPrimary:            surface,
+      primaryContainer:     AppColors.acid,
+      onPrimaryContainer:   AppColors.ink,   // acid is always light
+      secondary:            AppColors.volt,
+      onSecondary:          onSurface,
+      secondaryContainer:   AppColors.bubblegum,
+      onSecondaryContainer: AppColors.ink,
+      tertiary:             AppColors.alarm,
+      onTertiary:           onSurface,
+      error:                AppColors.alarm,
+      onError:              onSurface,
+      surface:              surface,
+      onSurface:            onSurface,
+      outline:              onSurface,
+      outlineVariant:       guide,
+    );
 
-      colorScheme: lightTheme.colorScheme.copyWith(
-        brightness: Brightness.dark,
-        primary: Colors.white,
-        onPrimary: Colors.black,
-        surface: Colors.black,
-        onSurface: Colors.white,
-        outline: Colors.white,
-        outlineVariant: Colors.grey.shade800,
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: surface,
+
+      // Text — apply off-white to every text style
+      textTheme: _textTheme.apply(
+        bodyColor:    onSurface,
+        displayColor: onSurface,
       ),
 
-      scaffoldBackgroundColor: Colors.black,
-
-      textTheme: lightTheme.textTheme.apply(
-        bodyColor: Colors.white,
-        displayColor: Colors.white,
-      ),
-
-      appBarTheme: lightTheme.appBarTheme.copyWith(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: lightTheme.appBarTheme.titleTextStyle?.copyWith(
-          color: Colors.white,
+      // ── AppBar ───────────────────────────────────────────────────
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface,
+        foregroundColor: onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleTextStyle: _mono(14, weight: FontWeight.w700).copyWith(
+          color: onSurface,
+          letterSpacing: 0.5,
         ),
+        iconTheme: const IconThemeData(color: onSurface),
         shape: const Border(
-          bottom: BorderSide(color: Colors.white, width: 1),
+          bottom: BorderSide(color: onSurface, width: AppColors.borderRule),
         ),
       ),
 
-      cardTheme: lightTheme.cardTheme.copyWith(
-        color: Colors.black,
+      // ── Filled buttons ────────────────────────────────────────────
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed) ||
+                states.contains(WidgetState.hovered)) {
+              return onSurface;
+            }
+            return surface;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed) ||
+                states.contains(WidgetState.hovered)) {
+              return surface;
+            }
+            return onSurface;
+          }),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          side: WidgetStateProperty.all(
+            const BorderSide(color: onSurface, width: AppColors.borderFrame),
+          ),
+          shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
+          minimumSize: WidgetStateProperty.all(const Size.fromHeight(48)),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.spaceMono(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          animationDuration: Duration.zero,
+          enableFeedback: true,
+        ),
       ),
 
+      // ── Outlined buttons ──────────────────────────────────────────
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed) ||
+                states.contains(WidgetState.hovered)) {
+              return onSurface;
+            }
+            return Colors.transparent;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed) ||
+                states.contains(WidgetState.hovered)) {
+              return surface;
+            }
+            return onSurface;
+          }),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          side: WidgetStateProperty.all(
+            const BorderSide(color: onSurface, width: AppColors.borderFrame),
+          ),
+          shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
+          minimumSize: WidgetStateProperty.all(const Size.fromHeight(48)),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.spaceMono(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          animationDuration: Duration.zero,
+        ),
+      ),
+
+      // ── Cards ────────────────────────────────────────────────────
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        color: surface,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(),
+      ),
+
+      // ── Divider ───────────────────────────────────────────────────
       dividerTheme: const DividerThemeData(
-        color: Colors.white,
-        thickness: 1,
+        color: onSurface,
+        thickness: AppColors.borderRule,
+        space: 0,
+      ),
+
+      // ── Progress indicators ───────────────────────────────────────
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: onSurface,
+        linearTrackColor: guide,
+        circularTrackColor: guide,
       ),
     );
   }

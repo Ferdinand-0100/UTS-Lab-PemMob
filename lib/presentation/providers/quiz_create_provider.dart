@@ -115,7 +115,15 @@ class QuizCreateNotifier extends StateNotifier<QuizCreateState> {
       }).eq('id', quizId);
 
       // Delete existing questions and re-insert — simpler than diffing.
-      await _client.from('questions').delete().eq('quiz_id', quizId);
+      // Using .select() forces PostgREST to return the deleted rows, which
+      // means RLS policies that silently block DELETE will instead throw a
+      // PostgrestException rather than returning success with 0 rows deleted
+      // (which would cause the insert below to append duplicates).
+      await _client
+          .from('questions')
+          .delete()
+          .eq('quiz_id', quizId)
+          .select();
 
       final questionRows = questions
           .map(

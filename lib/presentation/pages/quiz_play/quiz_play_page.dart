@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +7,7 @@ import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/domain/entities/question.dart';
 import 'package:quiz_app/presentation/providers/quiz_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
+import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
 /// Quiz play page in Anti-Design style.
 ///
@@ -46,7 +47,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: c.paper,
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         shape: const RoundedRectangleBorder(),
         title: Text(
           'QUIT QUIZ?',
@@ -54,14 +55,14 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
             fontSize: 14,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         content: Text(
           'Your progress will be lost.',
           style: GoogleFonts.instrumentSans(
             fontSize: AppColors.bodySize,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -93,7 +94,12 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     }
 
     // Still loading (initial state before start() resolves).
-    if (playState is QuizPlayLoading) return const _LoadingScaffold();
+    if (playState is QuizPlayLoading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const AppLoadingView(),
+      );
+    }
 
     final active = playState as QuizPlayActive;
 
@@ -101,7 +107,10 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.replace(AppRouter.quizResultPath(widget.quizId));
       });
-      return const _LoadingScaffold();
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const AppLoadingView(),
+      );
     }
 
     final question = active.quiz.questions[active.currentIndex];
@@ -121,15 +130,22 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: c.paper,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _TopStrip(
-                title: active.quiz.title,
-                current: currentQ,
-                total: total,
+              AppTopStrip(
+                title: active.quiz.title.toUpperCase(),
+                trailing: Text(
+                  '${currentQ.toString().padLeft(2, '0')} / '
+                  '${total.toString().padLeft(2, '0')}',
+                  style: GoogleFonts.spaceMono(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    letterSpacing: 1.0,
+                  ),
+                ),
               ),
               // gap swing: tight between strip and progress
               _ProgressSegments(current: currentQ, total: total),
@@ -192,55 +208,6 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
 enum _TimerUrgency { normal, volt, alarm }
 
-// ── Top strip ──────────────────────────────────────────────────────────────
-
-class _TopStrip extends StatelessWidget {
-  const _TopStrip({
-    required this.title,
-    required this.current,
-    required this.total,
-  });
-
-  final String title;
-  final int current;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: c.ink, width: AppColors.borderRule),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.spaceMono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: c.ink,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            '${current.toString().padLeft(2, '0')} / '
-            '${total.toString().padLeft(2, '0')}',
-            style: GoogleFonts.spaceMono(
-              fontSize: 11,
-              color: c.ink,
-              letterSpacing: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Progress segments ──────────────────────────────────────────────────────
 
 class _ProgressSegments extends StatelessWidget {
@@ -251,6 +218,7 @@ class _ProgressSegments extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     return Semantics(
       label: 'Question $current of $total',
       child: SizedBox(
@@ -258,7 +226,6 @@ class _ProgressSegments extends StatelessWidget {
         child: Row(
           children: List.generate(total, (i) {
             final filled = i < current;
-            // Unequal flex — repeating 3/2/4 pattern.
             final flex = switch (i % 3) {
               0 => 3,
               1 => 2,
@@ -270,7 +237,7 @@ class _ProgressSegments extends StatelessWidget {
                 margin: EdgeInsets.only(
                   right: i < total - 1 ? AppColors.borderRule * 2 : 0,
                 ),
-                color: filled ? c.ink : c.grid,
+                color: filled ? s.onSurface : s.guide,
               ),
             );
           }),
@@ -411,36 +378,38 @@ class _TimerSlab extends StatelessWidget {
 class _OptionsDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final guide = Theme.of(context).colorScheme.outlineVariant;
     return ExcludeSemantics(
       child: Row(
         children: [
-          _tickMark(),
+          _tickMark(guide),
           Expanded(
             child: Container(
               height: AppColors.borderRule,
-              color: c.grid,
+              color: guide,
             ),
           ),
-          _tickMark(),
+          _tickMark(guide),
         ],
       ),
     );
   }
 
-  Widget _tickMark() {
-    return SizedBox(
-      width: 8,
-      height: 8,
-      child: CustomPaint(painter: _TickPainter()),
-    );
-  }
+  Widget _tickMark(Color color) => SizedBox(
+        width: 8,
+        height: 8,
+        child: CustomPaint(painter: _TickPainter(color)),
+      );
 }
 
 class _TickPainter extends CustomPainter {
+  const _TickPainter(this.color);
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = c.grid
+      ..color = color
       ..strokeWidth = AppColors.borderRule
       ..style = PaintingStyle.stroke;
     canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), paint);
@@ -448,7 +417,7 @@ class _TickPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(_TickPainter old) => old.color != color;
 }
 
 // ── Giant question number (signature move 1) ──────────────────────────────
@@ -477,7 +446,7 @@ class _QuestionNumber extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 height: 0.9,
                 letterSpacing: -3.0,
-                color: c.grid,
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
             ),
             const SizedBox(width: 4),
@@ -485,7 +454,7 @@ class _QuestionNumber extends StatelessWidget {
               '/ ${total.toString().padLeft(2, '0')}',
               style: GoogleFonts.spaceMono(
                 fontSize: 14,
-                color: c.grid,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 letterSpacing: 1.0,
               ),
             ),
@@ -510,7 +479,7 @@ class _QuestionText extends StatelessWidget {
         fontSize: 22,
         fontWeight: FontWeight.w600,
         height: 1.3,
-        color: c.ink,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -543,6 +512,7 @@ class _OptionButtonState extends State<_OptionButton> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppSurface.of(context);
     final inverted = _pressed || _hovered;
 
     return Padding(
@@ -574,9 +544,9 @@ class _OptionButtonState extends State<_OptionButton> {
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: inverted ? c.ink : c.paper,
+                      color: inverted ? s.onSurface : s.surface,
                       border: Border.all(
-                        color: c.ink,
+                        color: s.onSurface,
                         width: focused
                             ? AppColors.borderFrame
                             : AppColors.borderRule,
@@ -594,7 +564,7 @@ class _OptionButtonState extends State<_OptionButton> {
                           style: GoogleFonts.spaceMono(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: inverted ? c.paper : c.ink,
+                            color: inverted ? s.surface : s.onSurface,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -604,7 +574,7 @@ class _OptionButtonState extends State<_OptionButton> {
                             style: GoogleFonts.instrumentSans(
                               fontSize: AppColors.bodySize,
                               height: AppColors.bodyLeading,
-                              color: inverted ? c.paper : c.ink,
+                              color: inverted ? s.surface : s.onSurface,
                             ),
                           ),
                         ),
@@ -621,43 +591,6 @@ class _OptionButtonState extends State<_OptionButton> {
   }
 }
 
-// ── Loading scaffold ───────────────────────────────────────────────────────
-
-class _LoadingScaffold extends StatelessWidget {
-  const _LoadingScaffold();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: c.paper,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 32,
-              height: 32,
-              child: CircularProgressIndicator(
-                strokeWidth: AppColors.borderFrame,
-                color: c.ink,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'LOADING...',
-              style: GoogleFonts.spaceMono(
-                fontSize: 11,
-                letterSpacing: 2.0,
-                color: c.grid,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Error scaffold ─────────────────────────────────────────────────────────
 
 class _ErrorScaffold extends StatelessWidget {
@@ -668,41 +601,14 @@ class _ErrorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: c.paper,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                color: AppColors.alarm,
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ERROR',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.0,
-                        color: c.paper,
-                      ),
-                    ),
-                    const SizedBox(height: AppColors.gapTight),
-                    Text(
-                      message,
-                      style: GoogleFonts.instrumentSans(
-                        fontSize: AppColors.bodySize,
-                        color: c.paper,
-                        height: AppColors.bodyLeading,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              AppErrorBanner(message),
               const SizedBox(height: 16),
               Row(
                 children: [

@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quiz_app/core/theme/app_colors.dart';
 import 'package:quiz_app/presentation/providers/friend_provider.dart';
 import 'package:quiz_app/presentation/routes/app_router.dart';
+import 'package:quiz_app/presentation/widgets/app_widgets.dart';
 
 /// Friends page — manage friendships and view friends' quiz progress.
 ///
@@ -13,6 +14,9 @@ import 'package:quiz_app/presentation/routes/app_router.dart';
 ///  (3) Tilted stamp on section headers.
 ///  (5) Hairline crop ticks as dividers.
 ///  (6) Gap swing throughout.
+///
+/// Uses [AppTopStrip], [AppSectionLabel], [AppLoadingView], [AppErrorBanner]
+/// from the shared widget library.
 class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
@@ -49,15 +53,19 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     final state = ref.watch(friendListProvider);
 
     return Scaffold(
-      backgroundColor: c.paper,
+      backgroundColor: AppSurface.of(context).surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _TopStrip(onBack: () => context.go(AppRouter.home)),
+            // ── Shared top strip ──────────────────────────────────────
+            AppTopStrip(
+              onBack: () => context.go(AppRouter.home),
+              title: '03 FRIENDS',
+            ),
             Expanded(
               child: state.loading
-                  ? const _LoadingView()
+                  ? const AppLoadingView()
                   : CustomScrollView(
                       slivers: [
                         SliverToBoxAdapter(
@@ -71,21 +79,14 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                 const SizedBox(height: AppColors.nudge * 2),
                                 // Error banner
                                 if (state.errorMessage != null) ...[
-                                  Container(
-                                    color: AppColors.alarm,
-                                    padding: const EdgeInsets.all(12),
-                                    child: Text(
-                                      state.errorMessage!,
-                                      style: GoogleFonts.spaceMono(
-                                        fontSize: 11,
-                                        color: c.paper,
-                                      ),
-                                    ),
-                                  ),
+                                  AppErrorBanner(state.errorMessage!),
                                   const SizedBox(height: AppColors.nudge),
                                 ],
                                 // Add friend section
-                                _SectionLabel(label: 'ADD FRIEND'),
+                                AppSectionLabel(
+                                  label: 'ADD FRIEND',
+                                  accentColor: AppColors.bubblegum,
+                                ),
                                 const SizedBox(height: AppColors.nudge),
                                 Row(
                                   children: [
@@ -110,7 +111,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 1.5,
-                                            color: c.ink,
+                                            color: Theme.of(context).colorScheme.onSurface,
                                           ),
                                         ),
                                       ),
@@ -118,7 +119,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                   ],
                                 ),
                                 const SizedBox(height: AppColors.nudge * 2),
-                                _SectionLabel(label: 'FRIENDS'),
+                                AppSectionLabel(
+                                  label: 'FRIENDS',
+                                  accentColor: AppColors.bubblegum,
+                                ),
                                 const SizedBox(height: AppColors.nudge),
                               ],
                             ),
@@ -135,7 +139,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                                   fontSize: 28,
                                   fontWeight: FontWeight.w800,
                                   height: AppColors.displayLeading,
-                                  color: c.grid,
+                                  color: Theme.of(context).colorScheme.outlineVariant,
                                 ),
                               ),
                             ),
@@ -164,7 +168,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                             child: Padding(
                               padding:
                                   const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                              child: _SectionLabel(label: 'RECENT ACTIVITY'),
+                              child: AppSectionLabel(
+                                label: 'RECENT ACTIVITY',
+                                accentColor: AppColors.bubblegum,
+                              ),
                             ),
                           ),
                           SliverList.builder(
@@ -188,53 +195,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
   }
 }
 
-// ── Top strip ──────────────────────────────────────────────────────────────
-
-class _TopStrip extends StatelessWidget {
-  const _TopStrip({required this.onBack});
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom:
-              BorderSide(color: c.ink, width: AppColors.borderRule),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onBack,
-            child: Text(
-              '<- HOME',
-              style: GoogleFonts.spaceMono(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                color: c.ink,
-              ),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            '03 FRIENDS',
-            style: GoogleFonts.spaceMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: c.ink,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Headline (signature move 1) ────────────────────────────────────────────
+// ── Friend field ───────────────────────────────────────────────────────────
 
 class _Headline extends StatelessWidget {
   @override
@@ -253,7 +214,7 @@ class _Headline extends StatelessWidget {
             fontWeight: FontWeight.w800,
             height: AppColors.displayLeading,
             letterSpacing: -2.0,
-            color: c.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         Text(
@@ -263,52 +224,7 @@ class _Headline extends StatelessWidget {
             fontStyle: FontStyle.italic,
             height: AppColors.displayLeading,
             letterSpacing: -1.5,
-            color: c.ink,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Section label (signature move 3 + 5) ──────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        ExcludeSemantics(
-          child: Transform.rotate(
-            angle: AppColors.angleStamp,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.bubblegum,
-                border: Border.all(
-                    color: c.ink, width: AppColors.borderRule),
-              ),
-              child: Text(
-                label,
-                style: GoogleFonts.spaceMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.0,
-                  color: c.ink,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            height: AppColors.borderRule,
-            color: c.grid,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -329,24 +245,26 @@ class _FriendField extends StatelessWidget {
       controller: controller,
       keyboardType: TextInputType.emailAddress,
       style: GoogleFonts.instrumentSans(
-          fontSize: AppColors.bodySize, color: c.ink),
+          fontSize: AppColors.bodySize, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.instrumentSans(
-            fontSize: AppColors.bodySize, color: c.grid),
+            fontSize: AppColors.bodySize, color: Theme.of(context).colorScheme.outlineVariant),
         filled: true,
-        fillColor: c.paper,
+        fillColor: Theme.of(context).colorScheme.surface,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        enabledBorder: const OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: c.ink, width: AppColors.borderRule),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: AppColors.borderRule),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
-          borderSide:
-              BorderSide(color: c.ink, width: AppColors.borderFrame),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: AppColors.borderFrame),
         ),
       ),
     );
@@ -370,13 +288,13 @@ class _FriendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = entry.status == FriendshipStatus.pending;
     final bgColor =
-        isPending ? AppColors.bubblegum : c.paper;
+        isPending ? AppColors.bubblegum : Theme.of(context).colorScheme.surface;
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border:
-            Border.all(color: c.ink, width: AppColors.borderRule),
+            Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -391,7 +309,7 @@ class _FriendCard extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.0,
-                    color: c.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -404,7 +322,7 @@ class _FriendCard extends StatelessWidget {
                   style: GoogleFonts.spaceMono(
                     fontSize: 9,
                     letterSpacing: 1.5,
-                    color: c.grid,
+                    color: Theme.of(context).colorScheme.outlineVariant,
                   ),
                 ),
               ],
@@ -424,7 +342,7 @@ class _FriendCard extends StatelessWidget {
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
-                    color: c.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -439,7 +357,7 @@ class _FriendCard extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: c.ink, width: AppColors.borderRule),
+                    color: Theme.of(context).colorScheme.onSurface, width: AppColors.borderRule),
               ),
               child: Text(
                 isPending ? 'CANCEL' : 'REMOVE',
@@ -474,7 +392,7 @@ class _ScoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         border:
-            Border.all(color: c.ink, width: AppColors.borderRule),
+            Border.all(color: Theme.of(context).colorScheme.outline, width: AppColors.borderRule),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -533,37 +451,4 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
-// ── Loading view ───────────────────────────────────────────────────────────
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 32,
-            height: 32,
-            child: CircularProgressIndicator(
-              strokeWidth: AppColors.borderFrame,
-              color: c.ink,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'LOADING...',
-            style: GoogleFonts.spaceMono(
-              fontSize: 11,
-              letterSpacing: 2.0,
-              color: c.grid,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+// ── Headline (signature move 1) ────────────────────────────────────────────
